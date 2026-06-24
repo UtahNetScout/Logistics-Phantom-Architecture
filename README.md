@@ -94,7 +94,6 @@ The repository does **not** claim operational readiness, deployment capability, 
 ## How to Run Examples
 
 ```bash
-python agent_c_validator.py
 python src/prototype/agent_b_parallel_swarm_generator.py
 python src/prototype/bezier_path_generator.py
 python src/prototype/kinematic_velocity_profiler.py

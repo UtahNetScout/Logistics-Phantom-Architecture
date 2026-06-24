@@ -6,9 +6,7 @@ unclassified synthetic prototype data
 portfolio proof-of-concept
 not operational telemetry
 not deployment-ready deception tooling
-Not operational telemetry
-Not deployment-ready
-Prototype for research/portfolio purposes
+prototype for research/portfolio purposes
 
 Kinematic Velocity Profiler
 ===========================
