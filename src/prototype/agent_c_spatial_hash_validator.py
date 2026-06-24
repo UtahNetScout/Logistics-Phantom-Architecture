@@ -117,12 +117,11 @@ def validate_with_spatial_hash(
     return rejected_indices, metrics
 
 
-def score_false_positive_rate(rejected: Set[int], contaminated: Set[int]) -> float:
-    """Compute false-positive rate among clean phantom records."""
-    clean = max(len(rejected | contaminated) - len(contaminated), 0)
-    clean_total = max(1, len(rejected | contaminated))
+def score_false_positive_rate(rejected: Set[int], contaminated: Set[int], total_phantoms: int) -> float:
+    """Compute false-positive rate using the total number of clean records."""
     false_positives = len(rejected - contaminated)
-    return false_positives / clean_total if clean or false_positives else 0.0
+    clean_total = max(total_phantoms - len(contaminated), 1)
+    return false_positives / clean_total
 
 
 def main() -> None:
@@ -131,7 +130,7 @@ def main() -> None:
     phantoms, contaminated = generate_phantom_records(ground_truth=ground_truth)
     rejected, metrics = validate_with_spatial_hash(ground_truth, phantoms)
 
-    fp_rate = len(rejected - contaminated) / max(len(phantoms) - len(contaminated), 1)
+    fp_rate = score_false_positive_rate(rejected, contaminated, total_phantoms=len(phantoms))
 
     print("UNCLASSIFIED SYNTHETIC PROTOTYPE - Portfolio Proof-of-Concept")
     print("Not operational telemetry | Not deployment-ready | Prototype for research/portfolio purposes")
