@@ -18,6 +18,18 @@ The engineer-ready product should demonstrate three things:
 
 The product is not an operational deception system. It is a buildable portfolio-grade architecture and validation environment.
 
+### Long-Term Operational Vision
+
+The long-term vision for Logistics Phantom is a pre-mission, live-mission, and post-mission convoy support platform. In that mature future state, authorized users would plan a contested logistics movement, generate a large synthetic telemetry shield around the live convoy, monitor validation status during movement, and export an evidence report after the mission showing what was generated, what was rejected, what changed, and what the system observed.
+
+The strongest product idea is not "fake routes" by themselves. The stronger idea is a controlled deception lifecycle:
+
+1. **Pre-mission:** model the route, convoy profile, risk area, phantom multiplier, and validation constraints before the convoy moves.
+2. **During mission:** support authorized live convoy activity by maintaining a validated synthetic telemetry shield around protected movement, with human approval, stop controls, and continuous validation.
+3. **Post-mission:** generate a beginning-to-end evidence report that explains scenario setup, phantom generation volume, validation decisions, adversary-model results, operator actions, caveats, and lessons learned.
+
+This repository does not implement live convoy operations. Any future live-support mode would require legal authorization, operational authority, cybersecurity accreditation, data classification handling, command-and-control integration review, human-in-the-loop controls, and subject-matter expert validation before implementation.
+
 ---
 
 ## 2. Target Users
@@ -34,7 +46,7 @@ The product is not an operational deception system. It is a buildable portfolio-
 
 ## 3. Product Surface
 
-The product should expose five primary views.
+The product should expose six primary views.
 
 | View | Purpose | Core Actions |
 |------|---------|--------------|
@@ -42,7 +54,8 @@ The product should expose five primary views.
 | Pipeline Runner | Execute Agent A, Agent B, Agent C, and red-team stages. | Start run, stop run, inspect stage status, download artifacts. |
 | Validation Dashboard | Show Agent C approval/rejection results. | Inspect rejected phantom IDs, nearest ground-truth distance, latency, false positive checks. |
 | Red-Team Lab | Evaluate synthetic swarm realism with simplified adversary models. | Compare multiplier levels, SNR trend, detection rate, detector configuration. |
-| Evidence Report | Produce portfolio-ready output for reviewers. | Export Markdown/JSON summary, test status, validation boundaries, and caveats. |
+| Mission Timeline | Show pre-mission, during-mission, and post-mission stages. | Review setup, run events, validation changes, operator actions, and report status. |
+| Evidence Report | Produce portfolio-ready output for reviewers. | Export Markdown/JSON summary, test status, validation boundaries, caveats, and lifecycle narrative. |
 
 Minimum viable product can be a local web dashboard, Streamlit app, FastAPI backend plus React frontend, or CLI plus generated report. A web dashboard is preferred for "ready to use product" presentation.
 
@@ -280,6 +293,7 @@ The product API should be designed around scenario runs.
 | Portability | Product should run locally on Windows and Linux with documented setup. |
 | Observability | Pipeline stages must emit timing, counts, pass/fail, and caveat metadata. |
 | Security | Agent B must not receive ground-truth coordinates. Agent C outputs sanitized decisions only. |
+| Human Control | Any future live-support mode must include explicit approval gates, stop controls, and immutable operator-action logs. |
 | Presentation | Product UI must clearly separate validated prototype behavior from future claims. |
 
 ---
@@ -341,6 +355,22 @@ Done when:
 - Multiple scenario profiles can be compared in the dashboard.
 - Reports show caveats and validation boundaries automatically.
 
+### Phase 5: Future Authorized Live-Support Architecture
+
+**Goal:** define, but not implement, the architecture required for a future operational mode called Convoy Shield.
+
+Deliverables:
+- Live-support architecture document with authority, safety, and data-boundary requirements.
+- Human-in-the-loop workflow for approval, parameter changes, pause, resume, and emergency stop.
+- Mission timeline model for pre-mission, during-mission, and post-mission events.
+- Audit log model for operator actions, generated telemetry counts, validation outcomes, and system warnings.
+- Integration checklist for C2, sensor feeds, cybersecurity, classification, legal review, and operational ownership.
+
+Done when:
+- The repository clearly distinguishes prototype simulation from future authorized live support.
+- An engineer can understand the control plane and safety requirements without being given operational deployment instructions.
+- A reviewer can see the product vision: Logistics Phantom starts as a synthetic simulation platform and matures toward controlled convoy-protection support only under proper authority.
+
 ---
 
 ## 11. Test Strategy
@@ -370,13 +400,15 @@ The final product demo should support this story:
 
 1. Open Logistics Phantom.
 2. Select "Synthetic Contested Logistics Demo."
-3. Set phantom multiplier to 100x or 1000x.
-4. Run pipeline.
-5. Watch stage statuses: Scenario -> Phantom Generation -> Validation -> Red-Team Evaluation -> Report.
-6. Open validation dashboard and show contaminated phantoms rejected.
-7. Open red-team lab and show simplified SNR trend.
-8. Export evidence report.
-9. Explain boundaries: synthetic prototype, no operational telemetry, no deployment claims.
+3. Choose mission lifecycle mode: Pre-Mission Plan -> Mission Run -> Post-Mission Report.
+4. Set real convoy count to 1 and phantom multiplier to 100x, 1000x, or 10000x in simulation mode.
+5. Run pipeline.
+6. Watch stage statuses: Scenario -> Phantom Generation -> Validation -> Red-Team Evaluation -> Timeline -> Report.
+7. Open validation dashboard and show contaminated phantoms rejected.
+8. Open red-team lab and show simplified SNR trend.
+9. Open mission timeline and show the beginning-to-end record of setup, generation, validation, and evaluation events.
+10. Export evidence report.
+11. Explain boundaries: synthetic prototype, no operational telemetry, no deployment claims, future live support requires proper authority.
 
 ---
 
@@ -393,6 +425,8 @@ The final product demo should support this story:
 | P2 | Scenario templates | Add demo scenarios for urban, desert, mountain, and long-haul logistics. |
 | P2 | Detector plugins | Add interface for additional non-operational detector stand-ins. |
 | P2 | Artifact versioning | Store run metadata and outputs under `runs/{run_id}/`. |
+| P2 | Mission timeline | Record pre-mission setup, run events, validation events, and post-mission report status. |
+| P3 | Convoy Shield architecture | Define future live-support authority, human-control, audit, and integration requirements without implementing operational deployment. |
 
 ---
 
@@ -403,6 +437,8 @@ The final product demo should support this story:
 3. Should reports be optimized for GitHub reviewers, hiring managers, or defense product teams?
 4. Should Agent A remain architecture-only or be implemented as a synthetic scenario router in Phase 1?
 5. Which scenario template best matches the XRDNA conversation: contested logistics convoy, depot resupply, or supply-chain disruption?
+6. Should the first product demo emphasize the 10000x phantom convoy concept, or should it start with smaller multipliers and show the scaling path?
+7. What exact report audience matters most: technical hiring manager, defense product leader, operational logistics reviewer, or engineering handoff team?
 
 ---
 

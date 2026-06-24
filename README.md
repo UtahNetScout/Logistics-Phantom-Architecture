@@ -24,6 +24,8 @@ This document serves as:
 
 For an implementation-oriented handoff, see the dedicated [Engineering Blueprint](docs/ENGINEERING_BLUEPRINT.md). It translates the current prototype into a buildable product plan with product surfaces, data contracts, API boundaries, acceptance criteria, and a phased engineering backlog.
 
+The ultimate product vision is a full convoy lifecycle platform: pre-mission deception planning, future authorized live convoy support, and post-mission reporting that documents the process from beginning to end.
+
 ---
 
 ## Validation Status Matrix
