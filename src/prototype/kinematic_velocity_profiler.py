@@ -210,7 +210,10 @@ def main() -> int:
     print(f"  {BANNER}")
     print("=" * 70)
 
-    from src.prototype.bezier_path_generator import generate_bezier_path
+    try:
+        from .bezier_path_generator import generate_bezier_path  # package/module context
+    except ImportError:
+        from bezier_path_generator import generate_bezier_path  # standalone script context
 
     rng = random.Random(42)
     num_routes = 5

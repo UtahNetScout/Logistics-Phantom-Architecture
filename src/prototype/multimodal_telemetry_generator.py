@@ -30,7 +30,7 @@ Date: 2026
 import math
 import random
 import time
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -85,7 +85,7 @@ def _bearing_deg(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 
 def generate_telemetry(
     waypoints: List[Tuple[float, float]],
-    speed_profile_kmh: List[float] = None,
+    speed_profile_kmh: Optional[List[float]] = None,
     seed: int = 42,
 ) -> Dict:
     """
