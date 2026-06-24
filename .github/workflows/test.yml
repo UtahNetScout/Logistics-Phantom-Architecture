@@ -64,6 +64,14 @@ jobs:
         run: |
           python src/prototype/agent_b_parallel_swarm_generator.py
 
+      - name: Run remaining prototype scripts
+        run: |
+          python src/prototype/bezier_path_generator.py
+          python src/prototype/kinematic_velocity_profiler.py
+          python src/prototype/agent_c_spatial_hash_validator.py
+          python src/prototype/multimodal_telemetry_generator.py
+          python agent_c_validator.py
+
       - name: Display test summary
         if: always()
         run: |

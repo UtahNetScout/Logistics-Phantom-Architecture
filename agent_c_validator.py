@@ -30,6 +30,16 @@ from typing import List, Tuple, Dict
 
 
 # ============================================================================
+# BANNER
+# ============================================================================
+
+BANNER = (
+    "UNCLASSIFIED SYNTHETIC PROTOTYPE DATA | "
+    "PORTFOLIO PROOF-OF-CONCEPT | "
+    "NOT OPERATIONAL TELEMETRY"
+)
+
+# ============================================================================
 # CONFIGURATION CONSTANTS
 # ============================================================================
 
@@ -38,6 +48,7 @@ PHANTOM_CONVOY_COUNT = 1000             # Total phantom convoys to generate
 COLLISION_THRESHOLD_KM = 2.0            # Distance threshold for collision detection
 CONTAMINATION_COUNT = 5                 # Number of phantom convoys to intentionally contaminate
 EARTH_RADIUS_KM = 6371.0                # Earth's mean radius in kilometers
+RANDOM_SEED = 42                        # Fixed seed for reproducible output
 
 
 # ============================================================================
@@ -149,10 +160,6 @@ def generate_phantom_convoys(contamination_indices: List[int]) -> List[List[Tupl
         List[List[Tuple[float, float]]]: List of phantom convoys
     """
     phantom_convoys = []
-
-    # We'll store the real convoy reference for contamination
-    # (This is passed in the main execution)
-    real_convoy = None  # Will be injected by caller
 
     for convoy_idx in range(PHANTOM_CONVOY_COUNT):
         convoy = []
@@ -320,10 +327,11 @@ def print_summary_report(total_generated: int, results: Dict, processing_time_ms
 
 
 def print_footer():
-    """Print footer with execution timestamp."""
+    """Print footer with execution timestamp and prototype banner."""
     from datetime import datetime
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"  Validation Executed: {timestamp}")
+    print(f"  {BANNER}")
     print("=" * 80 + "\n")
 
 
@@ -338,6 +346,9 @@ def main():
     Orchestrates data generation, contamination injection, validation,
     and reporting.
     """
+    # Fix random seed for reproducible output
+    random.seed(RANDOM_SEED)
+
     # Start timing
     start_time = time.time()
 

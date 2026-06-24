@@ -30,7 +30,7 @@ import math
 import random
 import time
 from multiprocessing import Pool, cpu_count
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 # ============================================================================
 # BANNER
@@ -144,7 +144,7 @@ def _generate_single_phantom(args: Tuple[int, int]) -> Dict:
 def generate_phantom_swarm(
     num_phantoms: int,
     seed: int = 42,
-    n_workers: int = None,
+    n_workers: Optional[int] = None,
 ) -> List[Dict]:
     """
     Generate a swarm of synthetic phantom convoy records in parallel.
