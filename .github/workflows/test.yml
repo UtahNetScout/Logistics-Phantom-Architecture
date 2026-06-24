@@ -1,0 +1,103 @@
+name: Logistics Phantom — Test Suite
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Run Full Test Suite
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      - name: Install test dependencies
+        run: pip install -r requirements-test.txt
+
+      - name: Run unit tests
+        run: |
+          echo "=== UNIT TESTS ===" | tee unit-results.txt
+          python -m pytest tests/unit/ -v --tb=short -s 2>&1 | tee -a unit-results.txt
+
+      - name: Run integration tests
+        run: |
+          echo "=== INTEGRATION TESTS ===" | tee integration-results.txt
+          python -m pytest tests/integration/ -v --tb=short -s 2>&1 | tee -a integration-results.txt
+
+      - name: Run adversary / red-team tests
+        run: |
+          echo "=== ADVERSARY / RED-TEAM TESTS ===" | tee adversary-results.txt
+          python -m pytest tests/adversary/ -v --tb=short -s 2>&1 | tee -a adversary-results.txt
+
+      - name: Run performance benchmarks
+        run: |
+          echo "=== PERFORMANCE BENCHMARKS ===" | tee performance-results.txt
+          python -m pytest tests/performance/ -v --tb=short -s 2>&1 | tee -a performance-results.txt
+
+      - name: Run full suite with coverage
+        run: |
+          python -m pytest tests/ \
+            --cov=src/prototype \
+            --cov-report=term-missing \
+            --cov-report=html:htmlcov \
+            -q 2>&1 | tee coverage-summary.txt
+
+      - name: Run red-team simulation script
+        run: |
+          echo "=== RED-TEAM SIMULATION SCRIPT ===" | tee red-team-script.txt
+          python src/prototype/red_team_simulation_lab.py 2>&1 | tee -a red-team-script.txt
+
+      - name: Run Agent B swarm generator script
+        run: |
+          python src/prototype/agent_b_parallel_swarm_generator.py
+
+      - name: Display test summary
+        if: always()
+        run: |
+          echo ""
+          echo "============================================================"
+          echo "  LOGISTICS PHANTOM — TEST RESULTS SUMMARY"
+          echo "  UNCLASSIFIED SYNTHETIC PROTOTYPE DATA"
+          echo "============================================================"
+          grep -E "(PASSED|FAILED|ERROR|passed|failed|error)" unit-results.txt \
+               integration-results.txt adversary-results.txt \
+               performance-results.txt 2>/dev/null | tail -10
+          echo ""
+          echo "Coverage summary:"
+          tail -5 coverage-summary.txt 2>/dev/null || true
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-${{ github.run_number }}
+          path: |
+            unit-results.txt
+            integration-results.txt
+            adversary-results.txt
+            performance-results.txt
+            red-team-script.txt
+            coverage-summary.txt
+            htmlcov/
+          retention-days: 30
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report-${{ github.run_number }}
+          path: htmlcov/
+          retention-days: 30
