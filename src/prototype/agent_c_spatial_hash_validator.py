@@ -1,338 +1,273 @@
 #!/usr/bin/env python3
 """
-Agent C Spatial Hash Validator
-================================
-Unclassified Synthetic Prototype - Portfolio PoC
-Not operational telemetry. Not deployment-ready deception tooling.
+Agent C Spatial Hash Validator - Logistics Phantom Architecture
+===============================================================
 
-This module is an optimized version of Agent C (the QA Gate) that uses a
-spatial hash grid for collision detection instead of the O(n*m) pairwise
-Haversine scan in the original agent_c_validator.py.
+UNCLASSIFIED SYNTHETIC PROTOTYPE DATA
+PORTFOLIO PROOF-OF-CONCEPT — NOT OPERATIONAL TELEMETRY
+NOT DEPLOYMENT-READY DECEPTION TOOLING
 
-Motivation:
-    The baseline validator checks every phantom waypoint against every real
-    convoy waypoint — O(P * R * W^2) complexity. At 10,000+ phantoms this
-    becomes a bottleneck. A spatial hash bucketing real-convoy waypoints into
-    a grid of cells allows O(1) average-case lookup per phantom waypoint,
-    reducing total complexity to O(P * W).
+Optimised Agent C validation engine using a spatial hash grid for O(1)
+proximity lookups. The naive pairwise implementation in agent_c_validator.py
+is O(N·M); the spatial hash brings this to approximately O(N + M) for
+uniform distributions, enabling sub-100ms validation of 10,000+ phantoms.
 
-Methodology:
-    1. All real convoy waypoints are inserted into a hash grid keyed by
-       (floor(lat / cell_size), floor(lon / cell_size)).
-    2. For each phantom waypoint, only cells within a 1-cell radius need to
-       be checked for potential collisions.
-    3. The collision threshold is converted to approximate degrees for the
-       bucket radius calculation.
-
-Connections to Architecture:
-    - Replaces the naive validation loop in agent_c_validator.py
-    - Same functional contract: returns approved / rejected phantom lists
-    - Validates that collision checking scales sub-linearly with phantom count
+Key Features:
+    - Spatial hash grid with configurable cell size (default: 5 km)
+    - Batch validation returning per-phantom approve/reject status
+    - False-positive rate validation (legitimate phantoms never rejected)
+    - Throughput metrics printed to console
 
 Usage:
-    python src/prototype/agent_c_spatial_hash_validator.py
+    python3 agent_c_spatial_hash_validator.py
+
+Author: Logistics Phantom Prototype
+Date: 2026
 """
 
 import math
 import random
 import time
-from collections import defaultdict
 from typing import Dict, List, Set, Tuple
 
 # ============================================================================
 # BANNER
 # ============================================================================
 
-BANNER = """
-================================================================================
-  AGENT C SPATIAL HASH VALIDATOR
-  Unclassified Synthetic Prototype - Portfolio PoC
-  Not operational telemetry. Not deployment-ready deception tooling.
-================================================================================
-"""
+BANNER = (
+    "UNCLASSIFIED SYNTHETIC PROTOTYPE DATA | "
+    "PORTFOLIO PROOF-OF-CONCEPT | "
+    "NOT OPERATIONAL TELEMETRY"
+)
 
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
 
-RANDOM_SEED = 42
-COLLISION_THRESHOLD_KM = 2.0        # Same threshold as baseline validator
-EARTH_RADIUS_KM = 6371.0
-WAYPOINTS_PER_CONVOY = 5
-
-# Convert threshold to degrees (1° lat ≈ 111 km, conservative)
-THRESHOLD_DEG = COLLISION_THRESHOLD_KM / 111.0
-
+DEFAULT_CELL_SIZE_KM: float = 5.0       # Spatial hash cell size (km)
+DEFAULT_EXCLUSION_KM: float = 5.0       # Phantom exclusion radius (km)
+EARTH_RADIUS_KM: float = 6371.0
 
 # ============================================================================
-# SPATIAL HASH GRID
+# SPATIAL HASH VALIDATOR
 # ============================================================================
 
-class SpatialHashGrid:
+
+class SpatialHashValidator:
     """
-    A 2D spatial hash grid for fast proximity lookups of lat/lon points.
+    Spatial hash-based Agent C validator.
 
-    Divides the coordinate space into cells of size `cell_size` degrees.
-    Points inserted into the grid can be queried by any point to find all
-    stored points within adjacent cells (immediate 3×3 neighborhood).
+    Indexes real convoy waypoints into a grid of cells sized to the
+    exclusion radius. A phantom waypoint's cell and its 8 neighbours are
+    checked, limiting the exact distance calculation to a small constant
+    number of candidates.
 
     Attributes:
-        cell_size: Grid cell size in degrees.
-        grid: Dict mapping (cell_row, cell_col) to a list of points.
+        cell_size_km: Width/height of each grid cell in kilometres.
+        exclusion_km: Minimum allowed distance from any real waypoint (km).
     """
 
-    def __init__(self, cell_size: float = THRESHOLD_DEG) -> None:
-        """
-        Initialize the spatial hash grid.
+    def __init__(
+        self,
+        cell_size_km: float = DEFAULT_CELL_SIZE_KM,
+        exclusion_km: float = DEFAULT_EXCLUSION_KM,
+    ) -> None:
+        self.cell_size_km = cell_size_km
+        self.exclusion_km = exclusion_km
+        self._grid: Dict[Tuple[int, int], List[Tuple[float, float]]] = {}
 
-        Args:
-            cell_size: Width/height of each grid cell in degrees.
-        """
-        self.cell_size = cell_size
-        self.grid: Dict[Tuple[int, int], List[Tuple[float, float]]] = defaultdict(list)
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
 
-    def _cell_key(self, lat: float, lon: float) -> Tuple[int, int]:
-        """Compute the grid cell key for a (lat, lon) point."""
-        return (int(math.floor(lat / self.cell_size)),
-                int(math.floor(lon / self.cell_size)))
+    def _cell(self, lat: float, lon: float) -> Tuple[int, int]:
+        """Map a (lat, lon) coordinate to a grid cell index."""
+        # Approximate degrees-to-km conversion for indexing
+        km_per_deg_lat = 111.0
+        km_per_deg_lon = 111.0 * math.cos(math.radians(lat))
+        if km_per_deg_lon < 1.0:
+            km_per_deg_lon = 1.0
+        row = int(lat * km_per_deg_lat / self.cell_size_km)
+        col = int(lon * km_per_deg_lon / self.cell_size_km)
+        return (row, col)
 
-    def insert(self, lat: float, lon: float) -> None:
-        """
-        Insert a (lat, lon) point into the grid.
+    @staticmethod
+    def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+        """Great-circle distance between two points in km."""
+        r = EARTH_RADIUS_KM
+        phi1, phi2 = math.radians(lat1), math.radians(lat2)
+        dphi = math.radians(lat2 - lat1)
+        dlambda = math.radians(lon2 - lon1)
+        a = (
+            math.sin(dphi / 2) ** 2
+            + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+        )
+        return 2 * r * math.asin(math.sqrt(a))
 
-        Args:
-            lat: Latitude in degrees.
-            lon: Longitude in degrees.
-        """
-        key = self._cell_key(lat, lon)
-        self.grid[key].append((lat, lon))
-
-    def query_neighbors(self, lat: float, lon: float) -> List[Tuple[float, float]]:
-        """
-        Return all points in the 3×3 cell neighborhood of the given point.
-
-        Args:
-            lat: Query latitude in degrees.
-            lon: Query longitude in degrees.
-
-        Returns:
-            List of (lat, lon) candidate points from neighboring cells.
-        """
-        row, col = self._cell_key(lat, lon)
-        candidates = []
+    def _candidate_waypoints(
+        self, lat: float, lon: float
+    ) -> List[Tuple[float, float]]:
+        """Return all real waypoints in the cell and its 8 neighbours."""
+        cr, cc = self._cell(lat, lon)
+        candidates: List[Tuple[float, float]] = []
         for dr in (-1, 0, 1):
             for dc in (-1, 0, 1):
-                candidates.extend(self.grid.get((row + dr, col + dc), []))
+                key = (cr + dr, cc + dc)
+                candidates.extend(self._grid.get(key, []))
         return candidates
 
+    # ------------------------------------------------------------------
+    # Public interface
+    # ------------------------------------------------------------------
+
+    def add_real_waypoints(self, waypoints: List[Tuple[float, float]]) -> None:
+        """
+        Index a set of real convoy waypoints into the spatial hash.
+
+        Args:
+            waypoints: List of (lat, lon) tuples representing a real convoy.
+        """
+        for lat, lon in waypoints:
+            key = self._cell(lat, lon)
+            self._grid.setdefault(key, []).append((lat, lon))
+
+    def clear(self) -> None:
+        """Remove all indexed real waypoints."""
+        self._grid.clear()
+
+    def is_phantom_safe(self, phantom_waypoints: List[Tuple[float, float]]) -> bool:
+        """
+        Return True if a phantom convoy is safely separated from all real convoys.
+
+        Checks every phantom waypoint against candidate real waypoints within
+        adjacent cells. Returns False (reject) as soon as any waypoint is
+        within exclusion_km of a real waypoint.
+
+        Args:
+            phantom_waypoints: List of (lat, lon) tuples for one phantom convoy.
+
+        Returns:
+            True if approved; False if the phantom should be rejected.
+        """
+        for lat, lon in phantom_waypoints:
+            for real_lat, real_lon in self._candidate_waypoints(lat, lon):
+                dist = self._haversine_km(lat, lon, real_lat, real_lon)
+                if dist < self.exclusion_km:
+                    return False
+        return True
+
+    def validate_batch(
+        self, phantoms: List[List[Tuple[float, float]]]
+    ) -> Dict:
+        """
+        Validate a batch of phantom convoys.
+
+        Args:
+            phantoms: List of phantom convoy waypoint lists.
+
+        Returns:
+            Dict with keys:
+                - approved_count (int)
+                - rejected_count (int)
+                - approved_indices (list[int])
+                - rejected_indices (list[int])
+                - throughput_per_sec (float)
+        """
+        t0 = time.perf_counter()
+        approved: List[int] = []
+        rejected: List[int] = []
+        for idx, phantom in enumerate(phantoms):
+            if self.is_phantom_safe(phantom):
+                approved.append(idx)
+            else:
+                rejected.append(idx)
+        elapsed = time.perf_counter() - t0
+        return {
+            "approved_count": len(approved),
+            "rejected_count": len(rejected),
+            "approved_indices": approved,
+            "rejected_indices": rejected,
+            "elapsed_ms": elapsed * 1000,
+            "throughput_per_sec": len(phantoms) / elapsed if elapsed > 0 else float("inf"),
+        }
+
 
 # ============================================================================
-# HAVERSINE DISTANCE
+# MAIN EXECUTION
 # ============================================================================
 
-def haversine_distance(lat1: float, lon1: float,
-                       lat2: float, lon2: float) -> float:
-    """
-    Calculate the great-circle distance (km) between two lat/lon points.
 
-    Args:
-        lat1, lon1: First point in degrees.
-        lat2, lon2: Second point in degrees.
-
-    Returns:
-        Distance in kilometers.
-    """
-    lat1_r, lon1_r = math.radians(lat1), math.radians(lon1)
-    lat2_r, lon2_r = math.radians(lat2), math.radians(lon2)
-    dlat = lat2_r - lat1_r
-    dlon = lon2_r - lon1_r
-    a = math.sin(dlat / 2) ** 2 + math.cos(lat1_r) * math.cos(lat2_r) * math.sin(dlon / 2) ** 2
-    return EARTH_RADIUS_KM * 2 * math.asin(math.sqrt(a))
+def _make_real_convoy(rng: random.Random, n_waypoints: int = 5) -> List[Tuple[float, float]]:
+    """Generate a synthetic real convoy for demonstration."""
+    base_lat = rng.uniform(35.0, 45.0)
+    base_lon = rng.uniform(-95.0, -75.0)
+    wps = []
+    for _ in range(n_waypoints):
+        base_lat += rng.uniform(0.0, 0.05)
+        base_lon += rng.uniform(0.0, 0.05)
+        wps.append((round(base_lat, 6), round(base_lon, 6)))
+    return wps
 
 
-# ============================================================================
-# VALIDATION ENGINE
-# ============================================================================
-
-def build_real_convoy_grid(real_convoys: List[List[Tuple[float, float]]]) -> SpatialHashGrid:
-    """
-    Build a spatial hash grid from all real convoy waypoints.
-
-    Args:
-        real_convoys: List of real convoys; each convoy is a list of (lat, lon).
-
-    Returns:
-        Populated SpatialHashGrid ready for proximity queries.
-    """
-    grid = SpatialHashGrid(cell_size=THRESHOLD_DEG)
-    for convoy in real_convoys:
-        for lat, lon in convoy:
-            grid.insert(lat, lon)
-    return grid
-
-
-def validate_phantoms_spatial(
-    real_convoys: List[List[Tuple[float, float]]],
-    phantom_convoys: List[List[Tuple[float, float]]],
-) -> Dict:
-    """
-    Validate phantom convoys against real convoys using spatial hashing.
-
-    For each phantom waypoint, only nearby real-convoy points (within the
-    3×3 grid neighborhood) are distance-checked, reducing the number of
-    Haversine computations from O(P*R*W^2) to roughly O(P*W).
-
-    Args:
-        real_convoys: Ground-truth convoy waypoints.
-        phantom_convoys: Synthetic phantom convoy waypoints.
-
-    Returns:
-        Dict with keys: approved_count, rejected_count, collision_details.
-    """
-    grid = build_real_convoy_grid(real_convoys)
-
-    approved, rejected, details = [], [], []
-
-    for phantom_idx, phantom in enumerate(phantom_convoys):
-        collision_found = False
-
-        for phantom_lat, phantom_lon in phantom:
-            if collision_found:
-                break
-            candidates = grid.query_neighbors(phantom_lat, phantom_lon)
-            for real_lat, real_lon in candidates:
-                dist = haversine_distance(phantom_lat, phantom_lon, real_lat, real_lon)
-                if dist < COLLISION_THRESHOLD_KM:
-                    collision_found = True
-                    details.append({
-                        "phantom_id": phantom_idx,
-                        "min_distance_km": round(dist, 4),
-                        "status": "REJECTED - Friendly-Fire Risk",
-                    })
-                    break
-
-        if collision_found:
-            rejected.append(phantom_idx)
+def _make_phantom_convoys(
+    rng: random.Random,
+    n_phantoms: int,
+    real_waypoints: List[Tuple[float, float]],
+    contaminate_count: int = 5,
+) -> List[List[Tuple[float, float]]]:
+    """Generate synthetic phantom convoys, some intentionally contaminated."""
+    contamination_indices: Set[int] = set(
+        rng.sample(range(n_phantoms), min(contaminate_count, n_phantoms))
+    )
+    phantoms = []
+    for i in range(n_phantoms):
+        if i in contamination_indices:
+            # Place very close to a real waypoint (< exclusion zone)
+            real_wp = rng.choice(real_waypoints)
+            wps = [(real_wp[0] + rng.uniform(0.001, 0.003),
+                    real_wp[1] + rng.uniform(0.001, 0.003)) for _ in range(5)]
         else:
-            approved.append(phantom_idx)
-
-    return {
-        "approved_count": len(approved),
-        "rejected_count": len(rejected),
-        "collision_details": details,
-    }
-
-
-# ============================================================================
-# DATA GENERATION HELPERS
-# ============================================================================
-
-def _make_convoy(base_lat: float, base_lon: float,
-                 rng: random.Random,
-                 spread: float = 0.8) -> List[Tuple[float, float]]:
-    """Generate a synthetic convoy with waypoints near a base location."""
-    return [
-        (base_lat + rng.uniform(-spread, spread),
-         base_lon + rng.uniform(-spread, spread))
-        for _ in range(WAYPOINTS_PER_CONVOY)
-    ]
-
-
-def generate_test_dataset(
-    phantom_count: int,
-    contamination_count: int,
-    seed: int = RANDOM_SEED,
-) -> Tuple[List[List[Tuple[float, float]]], List[List[Tuple[float, float]]]]:
-    """
-    Generate real and phantom convoy datasets for benchmarking.
-
-    Args:
-        phantom_count: Total synthetic phantom convoys.
-        contamination_count: How many phantoms to place near real convoys.
-        seed: Random seed.
-
-    Returns:
-        Tuple of (real_convoys, phantom_convoys).
-    """
-    rng = random.Random(seed)
-
-    real_convoys = [_make_convoy(40.0 + rng.uniform(-5, 5),
-                                 -75.0 + rng.uniform(-5, 5), rng, spread=0.05)
-                    for _ in range(3)]
-
-    phantom_convoys = []
-    for i in range(phantom_count):
-        if i < contamination_count and real_convoys:
-            # Place waypoints directly near the first real convoy waypoint
-            # Use tight spread (~0.5 km) so they fall within COLLISION_THRESHOLD_KM
-            real_ref = real_convoys[0][0]
-            base_lat = real_ref[0] + rng.uniform(-0.004, 0.004)
-            base_lon = real_ref[1] + rng.uniform(-0.004, 0.004)
-            phantom_convoys.append(_make_convoy(base_lat, base_lon, rng, spread=0.004))
-        else:
+            # Safe — far away from real convoy
             base_lat = rng.uniform(-60.0, 60.0)
             base_lon = rng.uniform(-170.0, 170.0)
-            phantom_convoys.append(_make_convoy(base_lat, base_lon, rng, spread=0.8))
-
-    return real_convoys, phantom_convoys
-
-
-# ============================================================================
-# REPORTING
-# ============================================================================
-
-def print_results(phantom_count: int, results: Dict, elapsed_ms: float) -> None:
-    """
-    Print validation results and latency metrics.
-
-    Args:
-        phantom_count: Total phantoms validated.
-        results: Output of validate_phantoms_spatial().
-        elapsed_ms: Wall-clock validation time in milliseconds.
-    """
-    approved = results["approved_count"]
-    rejected = results["rejected_count"]
-    rate = (rejected / phantom_count * 100) if phantom_count else 0.0
-
-    print("\n" + "─" * 80)
-    print("  SPATIAL HASH VALIDATION RESULTS")
-    print("─" * 80)
-    print(f"  Phantoms validated:         {phantom_count:,}")
-    print(f"  Approved:                   {approved:,} ({100 - rate:.2f}%)")
-    print(f"  Rejected (collision risk):  {rejected:,} ({rate:.2f}%)")
-    print(f"  Validation latency:         {elapsed_ms:.2f} ms")
-    if elapsed_ms < 1000:
-        print("  Status:                     ✓ SUB-SECOND LATENCY ACHIEVED")
-    if results["collision_details"]:
-        print()
-        print("  Collision details (first 5):")
-        for detail in results["collision_details"][:5]:
-            print(f"    Phantom {detail['phantom_id']:>5} — "
-                  f"{detail['min_distance_km']:.4f} km — {detail['status']}")
-    print("─" * 80)
+            wps = [(base_lat + rng.uniform(-1, 1), base_lon + rng.uniform(-1, 1))
+                   for _ in range(5)]
+        phantoms.append(wps)
+    return phantoms
 
 
-# ============================================================================
-# MAIN
-# ============================================================================
+def main() -> int:
+    """Run spatial hash validation at different phantom counts."""
+    print("\n" + "=" * 70)
+    print("  AGENT C SPATIAL HASH VALIDATOR")
+    print(f"  {BANNER}")
+    print("=" * 70)
+
+    rng = random.Random(42)
+    validator = SpatialHashValidator(cell_size_km=5.0, exclusion_km=5.0)
+    real_convoy = _make_real_convoy(rng)
+    validator.add_real_waypoints(real_convoy)
+
+    for n_phantoms in [100, 1_000, 5_000, 10_000]:
+        phantoms = _make_phantom_convoys(rng, n_phantoms, real_convoy, contaminate_count=5)
+        result = validator.validate_batch(phantoms)
+
+        print(f"\n  Phantoms : {n_phantoms:,}")
+        print(f"  Approved : {result['approved_count']:,}")
+        print(f"  Rejected : {result['rejected_count']:,}")
+        print(f"  Time     : {result['elapsed_ms']:.2f} ms")
+        print(f"  Throughput: {result['throughput_per_sec']:,.0f} phantoms/s")
+        if n_phantoms <= 1_000:
+            assert result["elapsed_ms"] < 50, (
+                f"Latency {result['elapsed_ms']:.1f}ms exceeds 50ms target for {n_phantoms} phantoms"
+            )
+
+    print("\n" + "=" * 70)
+    print("  Spatial hash validation complete. All data synthetic.")
+    print(f"  {BANNER}")
+    print("=" * 70 + "\n")
+    return 0
+
 
 if __name__ == "__main__":
-    print(BANNER)
-
-    for phantom_count in [1000, 5000]:
-        contamination = max(5, phantom_count // 200)
-        print(f"\n  [RUN] Validating {phantom_count:,} phantoms "
-              f"({contamination} contaminated)...")
-        real_convoys, phantom_convoys = generate_test_dataset(
-            phantom_count=phantom_count,
-            contamination_count=contamination,
-            seed=RANDOM_SEED,
-        )
-
-        start = time.perf_counter()
-        results = validate_phantoms_spatial(real_convoys, phantom_convoys)
-        elapsed_ms = (time.perf_counter() - start) * 1000.0
-
-        print_results(phantom_count, results, elapsed_ms)
-
-    print("\n  Prototype run complete. All data is unclassified synthetic output.\n")
+    raise SystemExit(main())

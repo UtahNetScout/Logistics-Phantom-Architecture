@@ -1,286 +1,257 @@
 #!/usr/bin/env python3
 """
-Kinematic Velocity Profiler
-============================
-Unclassified Synthetic Prototype - Portfolio PoC
-Not operational telemetry. Not deployment-ready deception tooling.
+Kinematic Velocity Profiler - Logistics Phantom Architecture
+============================================================
 
-This module generates physically plausible speed profiles for phantom convoy
-routes. Naive phantom telemetry moves at constant speed regardless of road
-geometry, which is a detectable artifact. Real vehicles slow on curves and
-accelerate on straight segments; this profiler replicates that behavior.
+UNCLASSIFIED SYNTHETIC PROTOTYPE DATA
+PORTFOLIO PROOF-OF-CONCEPT — NOT OPERATIONAL TELEMETRY
+NOT DEPLOYMENT-READY DECEPTION TOOLING
 
-Methodology:
-    - Curvature at each waypoint is estimated from the angular change between
-      consecutive waypoint vectors.
-    - Speed is inversely proportional to local curvature (sharp curves → slow).
-    - Speed is bounded by configurable min/max values representing convoy
-      operational speed ranges.
-    - Acceleration and deceleration between waypoints are applied smoothly.
+Applies physics-inspired velocity profiles to smooth phantom convoy paths.
+Vehicles slow on curves (centripetal acceleration limit) and accelerate on
+straights, mimicking real logistics vehicle behavior. This increases phantom
+realism compared to constant-speed or pure-noise approaches.
 
-Connections to Architecture:
-    - Consumes waypoint lists produced by bezier_path_generator.py
-    - Produces (lat, lon, speed_kmh, timestamp_s) tuples for downstream use
-    - More realistic speed profiles increase adversary detection cost
+Key Features:
+    - Speed reduction proportional to path curvature (radius of curvature)
+    - Acceleration/deceleration bounded by realistic vehicle constraints
+    - Speed variance within 15% of historical mean across a segment
+    - Deterministic with fixed seeds
+    - Printed metrics: mean velocity, acceleration variance, realism score
 
 Usage:
-    python src/prototype/kinematic_velocity_profiler.py
+    python3 kinematic_velocity_profiler.py
+
+Author: Logistics Phantom Prototype
+Date: 2026
 """
 
 import math
 import random
+import time
 from typing import List, Tuple
+
+import numpy as np
 
 # ============================================================================
 # BANNER
 # ============================================================================
 
-BANNER = """
-================================================================================
-  KINEMATIC VELOCITY PROFILER
-  Unclassified Synthetic Prototype - Portfolio PoC
-  Not operational telemetry. Not deployment-ready deception tooling.
-================================================================================
-"""
+BANNER = (
+    "UNCLASSIFIED SYNTHETIC PROTOTYPE DATA | "
+    "PORTFOLIO PROOF-OF-CONCEPT | "
+    "NOT OPERATIONAL TELEMETRY"
+)
 
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
 
-RANDOM_SEED = 42
-MIN_SPEED_KMH = 15.0        # Minimum speed at sharp curves (km/h)
-MAX_SPEED_KMH = 80.0        # Maximum speed on straight segments (km/h)
-MAX_ACCEL_KMHS = 10.0       # Max speed change per waypoint step (km/h)
-CURVATURE_SCALE = 5.0       # Tuning constant for curvature-to-speed mapping
-
+MIN_SPEED_KMH: float = 20.0            # Absolute minimum speed (km/h) on sharp turns
+MAX_SPEED_KMH: float = 65.0            # Absolute maximum speed (km/h) on straights
+BASE_SPEED_KMH: float = 45.0           # Historical mean logistics speed (km/h)
+MAX_ACCEL_MS2: float = 1.5             # Maximum acceleration (m/s²)
+MAX_DECEL_MS2: float = 2.5             # Maximum deceleration / braking (m/s²)
+MAX_LATERAL_ACCEL_MS2: float = 3.0     # Centripetal acceleration limit (m/s²)
+SPEED_VARIANCE_TOLERANCE: float = 0.15 # Speed variance must be within 15% of mean
 
 # ============================================================================
-# GEOMETRY HELPERS
+# CURVATURE COMPUTATION
 # ============================================================================
 
-Point2D = Tuple[float, float]       # (latitude, longitude)
-TelemetryPoint = Tuple[float, float, float, float]   # (lat, lon, speed, time)
 
-
-def euclidean_distance(p1: Point2D, p2: Point2D) -> float:
+def _compute_curvature(path: np.ndarray) -> np.ndarray:
     """
-    Calculate approximate planar distance between two lat/lon points.
+    Estimate the signed curvature at each interior path point.
 
-    Uses a flat-Earth approximation adequate for short route segments
-    (< 100 km). Not suitable for large-scale geodesic calculations.
+    Uses the standard three-point formula. End points are assigned zero
+    curvature (treated as straight).
 
     Args:
-        p1: First (lat, lon) point.
-        p2: Second (lat, lon) point.
+        path: Array of shape (N, 2) with (lat, lon) in degrees.
 
     Returns:
-        Approximate distance in degrees (proxy for short-range comparison).
+        Array of shape (N,) with curvature values (1/m, approximately).
     """
-    return math.sqrt((p2[0] - p1[0]) ** 2 + (p2[1] - p1[1]) ** 2)
+    n = len(path)
+    curvature = np.zeros(n)
+    if n < 3:
+        return curvature
 
+    # Work in approximate Cartesian metres for local geometry
+    # 1 degree latitude ≈ 111_000 m; longitude scaled by cos(lat)
+    lat_mid = math.radians(path[:, 0].mean())
+    scale_lat = 111_000.0
+    scale_lon = 111_000.0 * math.cos(lat_mid)
 
-def turning_angle_rad(prev_pt: Point2D, curr_pt: Point2D,
-                      next_pt: Point2D) -> float:
-    """
-    Estimate the turning angle at curr_pt given the adjacent waypoints.
-
-    Computes the angle between vectors (prev→curr) and (curr→next).
-    A larger turning angle indicates a sharper curve.
-
-    Args:
-        prev_pt: Previous waypoint (lat, lon).
-        curr_pt: Current waypoint (lat, lon).
-        next_pt: Next waypoint (lat, lon).
-
-    Returns:
-        Turning angle in radians [0, π].
-    """
-    v1 = (curr_pt[0] - prev_pt[0], curr_pt[1] - prev_pt[1])
-    v2 = (next_pt[0] - curr_pt[0], next_pt[1] - curr_pt[1])
-
-    mag1 = math.sqrt(v1[0] ** 2 + v1[1] ** 2)
-    mag2 = math.sqrt(v2[0] ** 2 + v2[1] ** 2)
-
-    if mag1 < 1e-9 or mag2 < 1e-9:
-        return 0.0
-
-    dot = v1[0] * v2[0] + v1[1] * v2[1]
-    cos_angle = max(-1.0, min(1.0, dot / (mag1 * mag2)))
-    return math.acos(cos_angle)
-
-
-# ============================================================================
-# SPEED PROFILING
-# ============================================================================
-
-def compute_curvature_speeds(waypoints: List[Point2D]) -> List[float]:
-    """
-    Compute a target speed for each waypoint based on local curvature.
-
-    Interior waypoints receive a curvature-derived speed; endpoints inherit
-    their nearest interior value. Speed decreases with sharper curvature.
-
-    Args:
-        waypoints: Ordered list of (lat, lon) route waypoints.
-
-    Returns:
-        List of target speeds (km/h) aligned to each waypoint.
-    """
-    n = len(waypoints)
-    speeds = [MAX_SPEED_KMH] * n
+    xy = np.column_stack([path[:, 1] * scale_lon, path[:, 0] * scale_lat])
 
     for i in range(1, n - 1):
-        angle = turning_angle_rad(waypoints[i - 1], waypoints[i], waypoints[i + 1])
-        # Normalize angle to [0, 1] relative to π; scale speed inversely
-        curvature_factor = angle / math.pi   # 0 = straight, 1 = U-turn
-        speed = MAX_SPEED_KMH - curvature_factor * CURVATURE_SCALE * (
-            MAX_SPEED_KMH - MIN_SPEED_KMH
-        )
-        speeds[i] = max(MIN_SPEED_KMH, min(MAX_SPEED_KMH, speed))
+        a = xy[i - 1]
+        b = xy[i]
+        c = xy[i + 1]
+        ab = np.linalg.norm(b - a)
+        bc = np.linalg.norm(c - b)
+        ac = np.linalg.norm(c - a)
+        # Area of triangle via cross product
+        cross = abs((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]))
+        denom = ab * bc * ac
+        curvature[i] = (2 * cross / denom) if denom > 1e-6 else 0.0
 
-    # Endpoints match adjacent interior points
-    if n >= 2:
-        speeds[0] = speeds[1]
-        speeds[-1] = speeds[-2]
-
-    return speeds
+    return curvature
 
 
-def smooth_speed_profile(raw_speeds: List[float],
-                         max_accel: float = MAX_ACCEL_KMHS) -> List[float]:
+# ============================================================================
+# PUBLIC API
+# ============================================================================
+
+
+def apply_kinematic_profile(
+    path: np.ndarray,
+    base_speed_kmh: float = BASE_SPEED_KMH,
+) -> np.ndarray:
     """
-    Apply acceleration/deceleration smoothing to the raw speed profile.
+    Compute a physically-constrained speed profile along a path.
 
-    Ensures that the speed change between consecutive waypoints never
-    exceeds max_accel, producing a physically plausible profile.
+    Steps:
+      1. Compute curvature at each point.
+      2. Derive maximum safe speed from centripetal acceleration limit.
+      3. Clip to [MIN_SPEED_KMH, MAX_SPEED_KMH].
+      4. Apply forward/backward smoothing passes to respect accel/decel limits.
 
     Args:
-        raw_speeds: List of curvature-derived target speeds.
-        max_accel: Maximum allowed speed change per step (km/h).
+        path: Array of shape (N, 2) with (lat, lon) in degrees.
+        base_speed_kmh: Nominal cruising speed used as the starting speed.
 
     Returns:
-        Smoothed speed list respecting acceleration constraints.
+        Array of shape (N,) with speed in km/h at each path point.
     """
-    smoothed = list(raw_speeds)
-    n = len(smoothed)
+    n = len(path)
+    if n < 2:
+        return np.full(n, base_speed_kmh)
 
-    # Forward pass (acceleration limit)
-    for i in range(1, n):
-        smoothed[i] = min(smoothed[i], smoothed[i - 1] + max_accel)
+    curvature = _compute_curvature(path)
 
-    # Backward pass (deceleration limit)
-    for i in range(n - 2, -1, -1):
-        smoothed[i] = min(smoothed[i], smoothed[i + 1] + max_accel)
+    # Maximum speed from centripetal limit: v² ≤ a_max / κ  →  v ≤ sqrt(a/κ)
+    speed = np.full(n, base_speed_kmh)
+    for i in range(n):
+        kappa = curvature[i]
+        if kappa > 1e-6:
+            v_max_ms = math.sqrt(MAX_LATERAL_ACCEL_MS2 / kappa)
+            v_max_kmh = v_max_ms * 3.6
+            speed[i] = min(speed[i], v_max_kmh)
 
-    return smoothed
+    speed = np.clip(speed, MIN_SPEED_KMH, MAX_SPEED_KMH)
+
+    # Compute approximate segment lengths in metres
+    lat_mid = math.radians(path[:, 0].mean())
+    scale_lat = 111_000.0
+    scale_lon = 111_000.0 * math.cos(lat_mid)
+    diffs = np.diff(path, axis=0)
+    seg_m = np.sqrt((diffs[:, 1] * scale_lon) ** 2 + (diffs[:, 0] * scale_lat) ** 2)
+    seg_m = np.maximum(seg_m, 1.0)  # avoid division by zero
+
+    def _accel_limited(spd: np.ndarray, max_accel: float) -> np.ndarray:
+        """Apply a single-pass acceleration limit (forward direction)."""
+        out = spd.copy()
+        for i in range(1, n):
+            ds = seg_m[i - 1]
+            # v² ≤ v_prev² + 2·a·ds  →  v ≤ sqrt(v_prev² + 2·a·ds)
+            v_max = math.sqrt(out[i - 1] ** 2 + 2 * max_accel * ds / 3.6 ** 2) * 3.6
+            if out[i] > v_max:
+                out[i] = v_max
+        return out
+
+    # Forward pass: limit acceleration
+    speed = _accel_limited(speed, MAX_ACCEL_MS2)
+    # Backward pass: limit deceleration (reverse speed array, then reverse back)
+    speed = _accel_limited(speed[::-1], MAX_DECEL_MS2)[::-1]
+
+    return speed
 
 
-def assign_timestamps(waypoints: List[Point2D],
-                      speeds: List[float],
-                      start_time_s: float = 0.0) -> List[TelemetryPoint]:
+def compute_realism_score(
+    speed_profile: np.ndarray,
+    historical_mean_kmh: float = BASE_SPEED_KMH,
+) -> float:
     """
-    Assign cumulative timestamps to each waypoint based on speed.
+    Compute a realism score (0–1) for a speed profile.
 
-    Converts speed (km/h) and inter-waypoint distance to elapsed time.
-    Uses a flat-Earth degree-to-km approximation (1° ≈ 111 km).
+    Score = 1.0 if speed variance is within SPEED_VARIANCE_TOLERANCE of the
+    historical mean, linearly decaying to 0.0 at twice the tolerance.
 
     Args:
-        waypoints: Ordered (lat, lon) waypoint list.
-        speeds: Speed (km/h) at each waypoint.
-        start_time_s: Absolute start time in seconds.
+        speed_profile: Array of speed values in km/h.
+        historical_mean_kmh: Expected mean speed.
 
     Returns:
-        List of (lat, lon, speed_kmh, timestamp_s) tuples.
+        Realism score in [0, 1].
     """
-    DEG_TO_KM = 111.0   # Rough approximation for short distances
-
-    telemetry: List[TelemetryPoint] = []
-    elapsed = start_time_s
-
-    for i, (wp, spd) in enumerate(zip(waypoints, speeds)):
-        telemetry.append((wp[0], wp[1], round(spd, 2), round(elapsed, 3)))
-
-        if i < len(waypoints) - 1:
-            dist_deg = euclidean_distance(wp, waypoints[i + 1])
-            dist_km = dist_deg * DEG_TO_KM
-            avg_speed = (spd + speeds[i + 1]) / 2.0
-            if avg_speed > 0:
-                elapsed += (dist_km / avg_speed) * 3600.0   # hours → seconds
-
-    return telemetry
-
-
-def profile_route(waypoints: List[Point2D],
-                  start_time_s: float = 0.0) -> List[TelemetryPoint]:
-    """
-    Full pipeline: waypoints → kinematic telemetry with speed timestamps.
-
-    Args:
-        waypoints: Ordered (lat, lon) route waypoints.
-        start_time_s: Route start time offset in seconds.
-
-    Returns:
-        List of (lat, lon, speed_kmh, timestamp_s) telemetry records.
-    """
-    raw_speeds = compute_curvature_speeds(waypoints)
-    smooth_speeds = smooth_speed_profile(raw_speeds)
-    return assign_timestamps(waypoints, smooth_speeds, start_time_s)
+    if len(speed_profile) == 0:
+        return 0.0
+    mean_spd = float(np.mean(speed_profile))
+    deviation = abs(mean_spd - historical_mean_kmh) / historical_mean_kmh
+    if deviation <= SPEED_VARIANCE_TOLERANCE:
+        return 1.0
+    elif deviation <= 2 * SPEED_VARIANCE_TOLERANCE:
+        return 1.0 - (deviation - SPEED_VARIANCE_TOLERANCE) / SPEED_VARIANCE_TOLERANCE
+    return 0.0
 
 
 # ============================================================================
-# REPORTING
+# MAIN EXECUTION
 # ============================================================================
 
-def print_profile_stats(telemetry: List[TelemetryPoint]) -> None:
-    """
-    Print speed profile statistics to console.
 
-    Args:
-        telemetry: Output of profile_route().
-    """
-    speeds = [pt[2] for pt in telemetry]
-    min_spd = min(speeds)
-    max_spd = max(speeds)
-    avg_spd = sum(speeds) / len(speeds)
-    total_time_s = telemetry[-1][3] - telemetry[0][3] if len(telemetry) > 1 else 0.0
+def main() -> int:
+    """Run kinematic profiling on several synthetic phantom routes."""
+    print("\n" + "=" * 70)
+    print("  KINEMATIC VELOCITY PROFILER")
+    print(f"  {BANNER}")
+    print("=" * 70)
 
-    print("\n" + "─" * 80)
-    print("  KINEMATIC PROFILE STATS")
-    print("─" * 80)
-    print(f"  Waypoints processed:  {len(telemetry)}")
-    print(f"  Min speed:            {min_spd:.1f} km/h  (sharp curves)")
-    print(f"  Max speed:            {max_spd:.1f} km/h  (straight segments)")
-    print(f"  Avg speed:            {avg_spd:.1f} km/h")
-    print(f"  Route duration:       {total_time_s:.1f} seconds")
-    print()
-    print("  First 5 telemetry points:")
-    print(f"  {'Lat':>12} {'Lon':>12} {'Speed(km/h)':>12} {'Time(s)':>10}")
-    print("  " + "─" * 50)
-    for pt in telemetry[:5]:
-        print(f"  {pt[0]:12.6f} {pt[1]:12.6f} {pt[2]:12.1f} {pt[3]:10.1f}")
-    print("─" * 80)
+    from src.prototype.bezier_path_generator import generate_bezier_path
 
+    rng = random.Random(42)
+    num_routes = 5
 
-# ============================================================================
-# MAIN
-# ============================================================================
+    for route_idx in range(num_routes):
+        n_wps = rng.randint(5, 10)
+        base_lat = rng.uniform(35.0, 45.0)
+        base_lon = rng.uniform(-95.0, -75.0)
+        waypoints: List[Tuple[float, float]] = []
+        for _ in range(n_wps):
+            base_lat += rng.uniform(0.2, 0.8)
+            base_lon += rng.uniform(0.2, 0.8)
+            waypoints.append((round(base_lat, 4), round(base_lon, 4)))
+
+        path = generate_bezier_path(waypoints, samples_per_segment=40)
+
+        t0 = time.perf_counter()
+        speed_profile = apply_kinematic_profile(path)
+        elapsed_ms = (time.perf_counter() - t0) * 1000
+
+        mean_v = float(np.mean(speed_profile))
+        std_v = float(np.std(speed_profile))
+        accel_var = float(np.var(np.diff(speed_profile)))
+        realism = compute_realism_score(speed_profile)
+
+        print(f"\n  Route {route_idx + 1}: {len(path)} path points")
+        print(f"  Mean velocity        : {mean_v:.2f} km/h")
+        print(f"  Speed std-dev        : {std_v:.2f} km/h")
+        print(f"  Acceleration variance: {accel_var:.4f}")
+        print(f"  Realism score        : {realism:.3f}  (target: >0.80)")
+        print(f"  Profiling time       : {elapsed_ms:.2f} ms")
+        assert mean_v >= MIN_SPEED_KMH, f"Mean speed {mean_v:.1f} below minimum"
+        assert mean_v <= MAX_SPEED_KMH, f"Mean speed {mean_v:.1f} above maximum"
+        assert realism >= 0.80, f"Realism score {realism:.3f} below 0.80"
+
+    print("\n" + "=" * 70)
+    print("  All routes passed kinematic realism checks.")
+    print(f"  {BANNER}")
+    print("=" * 70 + "\n")
+    return 0
+
 
 if __name__ == "__main__":
-    print(BANNER)
-
-    # Import bezier_path_generator sibling module for realistic waypoints
-    import sys
-    import os
-    sys.path.insert(0, os.path.dirname(__file__))
-    from bezier_path_generator import batch_generate_routes
-
-    print("  Generating 10 Bezier routes and applying kinematic velocity profiling...")
-    routes = batch_generate_routes(count=10, seed=RANDOM_SEED)
-
-    for idx, route in enumerate(routes):
-        telemetry = profile_route(route)
-        if idx == 0:
-            print_profile_stats(telemetry)
-
-    print(f"\n  Profiled {len(routes)} synthetic phantom routes.")
-    print("  Prototype run complete. All data is unclassified synthetic output.\n")
+    raise SystemExit(main())

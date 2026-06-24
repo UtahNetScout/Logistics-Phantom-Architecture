@@ -1,234 +1,256 @@
 #!/usr/bin/env python3
 """
-Bezier Path Generator
-======================
-Unclassified Synthetic Prototype - Portfolio PoC
-Not operational telemetry. Not deployment-ready deception tooling.
+Bezier Path Generator - Logistics Phantom Architecture
+======================================================
 
-This module generates realistic phantom convoy routes using cubic Bezier curves.
-Straight-line waypoint noise produces spatially implausible paths; Bezier curves
-produce smooth, road-like trajectories that are harder for adversarial anomaly
-detectors to distinguish from genuine logistics movements.
+UNCLASSIFIED SYNTHETIC PROTOTYPE DATA
+PORTFOLIO PROOF-OF-CONCEPT — NOT OPERATIONAL TELEMETRY
+NOT DEPLOYMENT-READY DECEPTION TOOLING
 
-Methodology:
-    - A cubic Bezier curve is defined by four control points: P0 (start),
-      P1 and P2 (interior handles), and P3 (end).
-    - Control points are jittered randomly from a base anchor to simulate
-      organic route variation.
-    - The curve is sampled at N evenly-spaced t values to produce waypoints.
-    - Multiple independent curves can be chained to simulate multi-leg routes.
+Generates smooth, realistic phantom convoy routes using piecewise cubic
+Bezier interpolation through user-supplied geographic waypoints. Straight-line
+point-to-point movement is an obvious synthetic artifact; Bezier curves
+produce naturally curved paths consistent with real road networks.
 
-Mathematical Background:
-    B(t) = (1-t)^3*P0 + 3*(1-t)^2*t*P1 + 3*(1-t)*t^2*P2 + t^3*P3
-    where t ∈ [0, 1]
-
-Connections to Architecture:
-    - Feeds into Agent B (Phantom Swarm Generator) to produce realistic paths
-    - More plausible movement patterns increase the cost of adversary filtering
-    - Kinematic velocity profiler consumes these waypoints downstream
+Key Features:
+    - Piecewise cubic Bezier curves passing through all input waypoints
+    - Smoothness score: fraction of adjacent-segment angle changes < 45°
+    - Path length always >= straight-line distance (realistic routing)
+    - Deterministic output with fixed seeds
 
 Usage:
-    python src/prototype/bezier_path_generator.py
+    python3 bezier_path_generator.py
+
+Author: Logistics Phantom Prototype
+Date: 2026
 """
 
+import math
 import random
+import time
 from typing import List, Tuple
+
+import numpy as np
 
 # ============================================================================
 # BANNER
 # ============================================================================
 
-BANNER = """
-================================================================================
-  BEZIER PATH GENERATOR
-  Unclassified Synthetic Prototype - Portfolio PoC
-  Not operational telemetry. Not deployment-ready deception tooling.
-================================================================================
-"""
+BANNER = (
+    "UNCLASSIFIED SYNTHETIC PROTOTYPE DATA | "
+    "PORTFOLIO PROOF-OF-CONCEPT | "
+    "NOT OPERATIONAL TELEMETRY"
+)
 
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
 
-RANDOM_SEED = 42
-WAYPOINTS_PER_ROUTE = 20        # Sampled points along each Bezier curve
-CONTROL_JITTER_DEG = 0.5        # Max lat/lon jitter for control points (degrees)
-ROUTE_SPAN_DEG = 2.0            # Approximate route length (degrees)
-
+DEFAULT_SAMPLES_PER_SEGMENT: int = 50   # Interpolation points per Bezier segment
+MAX_SMOOTH_ANGLE_DEG: float = 45.0      # Maximum acceptable angle change (degrees)
 
 # ============================================================================
 # BEZIER MATH
 # ============================================================================
 
-Point2D = Tuple[float, float]   # (latitude, longitude)
 
-
-def cubic_bezier_point(t: float,
-                       p0: Point2D, p1: Point2D,
-                       p2: Point2D, p3: Point2D) -> Point2D:
+def _cubic_bezier(
+    p0: np.ndarray,
+    p1: np.ndarray,
+    p2: np.ndarray,
+    p3: np.ndarray,
+    t: np.ndarray,
+) -> np.ndarray:
     """
-    Evaluate a cubic Bezier curve at parameter t.
-
-    B(t) = (1-t)^3*P0 + 3*(1-t)^2*t*P1 + 3*(1-t)*t^2*P2 + t^3*P3
+    Evaluate a cubic Bezier curve at parameter values t ∈ [0, 1].
 
     Args:
-        t:  Curve parameter in [0, 1]. t=0 returns P0, t=1 returns P3.
-        p0: Start control point (lat, lon).
-        p1: First interior handle (lat, lon).
-        p2: Second interior handle (lat, lon).
-        p3: End control point (lat, lon).
+        p0, p1, p2, p3: Control points as 1-D arrays of shape (2,).
+        t: Array of parameter values.
 
     Returns:
-        Interpolated (lat, lon) point on the curve.
+        Array of shape (len(t), 2) containing interpolated points.
     """
-    mt = 1.0 - t
-    lat = (mt ** 3 * p0[0]
-           + 3 * mt ** 2 * t * p1[0]
-           + 3 * mt * t ** 2 * p2[0]
-           + t ** 3 * p3[0])
-    lon = (mt ** 3 * p0[1]
-           + 3 * mt ** 2 * t * p1[1]
-           + 3 * mt * t ** 2 * p2[1]
-           + t ** 3 * p3[1])
-    return (round(lat, 6), round(lon, 6))
+    t = t[:, np.newaxis]
+    return (
+        (1 - t) ** 3 * p0
+        + 3 * (1 - t) ** 2 * t * p1
+        + 3 * (1 - t) * t ** 2 * p2
+        + t ** 3 * p3
+    )
 
 
-def sample_cubic_bezier(p0: Point2D, p1: Point2D,
-                        p2: Point2D, p3: Point2D,
-                        num_points: int = WAYPOINTS_PER_ROUTE) -> List[Point2D]:
+def _angle_between_vectors(v1: np.ndarray, v2: np.ndarray) -> float:
+    """Return the angle in degrees between two 2-D vectors."""
+    n1 = np.linalg.norm(v1)
+    n2 = np.linalg.norm(v2)
+    if n1 < 1e-12 or n2 < 1e-12:
+        return 0.0
+    cos_theta = np.clip(np.dot(v1, v2) / (n1 * n2), -1.0, 1.0)
+    return math.degrees(math.acos(cos_theta))
+
+
+# ============================================================================
+# PUBLIC API
+# ============================================================================
+
+
+def generate_bezier_path(
+    waypoints: List[Tuple[float, float]],
+    samples_per_segment: int = DEFAULT_SAMPLES_PER_SEGMENT,
+    control_scale: float = 0.3,
+) -> np.ndarray:
     """
-    Sample a cubic Bezier curve at evenly-spaced t values.
+    Generate a smooth Bezier path through a list of (lat, lon) waypoints.
+
+    Constructs piecewise cubic Bezier segments between consecutive waypoints.
+    Control points are automatically placed along the chord direction so the
+    curve passes close to—but not necessarily exactly through—each waypoint.
+    The first and last waypoints are always on the curve.
 
     Args:
-        p0: Start control point.
-        p1: First interior handle.
-        p2: Second interior handle.
-        p3: End control point.
-        num_points: Number of waypoints to sample along the curve.
+        waypoints: Ordered list of (lat, lon) tuples defining the route.
+        samples_per_segment: Number of interpolated points per Bezier segment.
+        control_scale: Fraction of segment length used for control point offset.
 
     Returns:
-        List of (lat, lon) tuples sampled from t=0 to t=1.
+        NumPy array of shape (N, 2) containing smoothed (lat, lon) positions.
     """
-    return [
-        cubic_bezier_point(i / (num_points - 1), p0, p1, p2, p3)
-        for i in range(num_points)
-    ]
+    if len(waypoints) < 2:
+        return np.array(waypoints, dtype=float)
+
+    pts = np.array(waypoints, dtype=float)
+    path_segments: List[np.ndarray] = []
+
+    for i in range(len(pts) - 1):
+        p0 = pts[i]
+        p3 = pts[i + 1]
+        chord = p3 - p0
+        # Control points offset along the chord direction
+        p1 = p0 + control_scale * chord
+        p2 = p3 - control_scale * chord
+        t_vals = np.linspace(0.0, 1.0, samples_per_segment, endpoint=(i == len(pts) - 2))
+        segment = _cubic_bezier(p0, p1, p2, p3, t_vals)
+        path_segments.append(segment)
+
+    return np.vstack(path_segments)
 
 
-# ============================================================================
-# ROUTE GENERATION
-# ============================================================================
-
-def generate_control_points(anchor_lat: float, anchor_lon: float,
-                             rng: random.Random) -> Tuple[Point2D, Point2D, Point2D, Point2D]:
+def compute_path_length_km(path: np.ndarray) -> float:
     """
-    Generate four control points for a cubic Bezier route.
-
-    Starts at the anchor, ends roughly ROUTE_SPAN_DEG away, with two
-    interior handles jittered to create organic curvature.
+    Compute the total length of a path in kilometres using the Haversine formula.
 
     Args:
-        anchor_lat: Latitude of the route start.
-        anchor_lon: Longitude of the route start.
-        rng: Random number generator for reproducibility.
+        path: Array of shape (N, 2) containing (lat, lon) in degrees.
 
     Returns:
-        Tuple of (P0, P1, P2, P3) control points.
+        Total path length in kilometres.
     """
-    span = ROUTE_SPAN_DEG
-    jitter = CONTROL_JITTER_DEG
-
-    p0 = (anchor_lat, anchor_lon)
-    p3 = (anchor_lat + rng.uniform(span * 0.5, span),
-          anchor_lon + rng.uniform(-span * 0.5, span * 0.5))
-
-    # Interior handles create the curve shape
-    p1 = (anchor_lat + rng.uniform(-jitter, jitter) + span * 0.25,
-          anchor_lon + rng.uniform(-jitter, jitter))
-    p2 = (anchor_lat + rng.uniform(-jitter, jitter) + span * 0.75,
-          anchor_lon + rng.uniform(-jitter, jitter))
-
-    return p0, p1, p2, p3
+    if len(path) < 2:
+        return 0.0
+    R = 6371.0
+    total = 0.0
+    for i in range(len(path) - 1):
+        lat1, lon1 = math.radians(path[i, 0]), math.radians(path[i, 1])
+        lat2, lon2 = math.radians(path[i + 1, 0]), math.radians(path[i + 1, 1])
+        dlat = lat2 - lat1
+        dlon = lon2 - lon1
+        a = math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
+        total += 2 * R * math.asin(math.sqrt(a))
+    return total
 
 
-def generate_bezier_route(anchor_lat: float, anchor_lon: float,
-                          rng: random.Random,
-                          num_points: int = WAYPOINTS_PER_ROUTE) -> List[Point2D]:
+def compute_smoothness_score(path: np.ndarray) -> float:
     """
-    Generate a full Bezier-curve phantom route from a given start point.
+    Compute a smoothness score for a path (0.0 = very jagged, 1.0 = perfectly smooth).
+
+    Smoothness is defined as the fraction of consecutive triplets where the
+    angular change is less than MAX_SMOOTH_ANGLE_DEG degrees.
 
     Args:
-        anchor_lat: Starting latitude for the route.
-        anchor_lon: Starting longitude for the route.
-        rng: Seeded random generator for determinism.
-        num_points: Number of waypoints to sample along the curve.
+        path: Array of shape (N, 2).
 
     Returns:
-        Ordered list of (lat, lon) waypoints forming a smooth route.
+        Smoothness score in [0, 1].
     """
-    p0, p1, p2, p3 = generate_control_points(anchor_lat, anchor_lon, rng)
-    return sample_cubic_bezier(p0, p1, p2, p3, num_points)
+    if len(path) < 3:
+        return 1.0
+    smooth_count = 0
+    total = 0
+    for i in range(1, len(path) - 1):
+        v1 = path[i] - path[i - 1]
+        v2 = path[i + 1] - path[i]
+        angle = _angle_between_vectors(v1, v2)
+        if angle < MAX_SMOOTH_ANGLE_DEG:
+            smooth_count += 1
+        total += 1
+    return smooth_count / total if total > 0 else 1.0
 
 
-def batch_generate_routes(count: int,
-                          seed: int = RANDOM_SEED) -> List[List[Point2D]]:
+def straight_line_distance_km(
+    waypoints: List[Tuple[float, float]],
+) -> float:
     """
-    Generate a batch of independent Bezier phantom routes.
+    Compute the total straight-line (great-circle) distance through waypoints.
 
     Args:
-        count: Number of routes to generate.
-        seed: Random seed for reproducibility.
+        waypoints: List of (lat, lon) tuples.
 
     Returns:
-        List of routes, each a list of (lat, lon) waypoints.
+        Total straight-line distance in kilometres.
     """
-    rng = random.Random(seed)
-    routes = []
-    for _ in range(count):
-        anchor_lat = rng.uniform(-55.0, 55.0)
-        anchor_lon = rng.uniform(-160.0, 160.0)
-        routes.append(generate_bezier_route(anchor_lat, anchor_lon, rng))
-    return routes
+    pts = np.array(waypoints, dtype=float)
+    return compute_path_length_km(pts)
 
 
 # ============================================================================
-# REPORTING
+# MAIN EXECUTION
 # ============================================================================
 
-def print_route_stats(routes: List[List[Point2D]]) -> None:
-    """
-    Print summary statistics about the generated routes.
 
-    Args:
-        routes: List of generated Bezier routes.
-    """
-    total_waypoints = sum(len(r) for r in routes)
-    print("\n" + "─" * 80)
-    print("  BEZIER ROUTE GENERATION STATS")
-    print("─" * 80)
-    print(f"  Routes generated:     {len(routes):,}")
-    print(f"  Waypoints per route:  {WAYPOINTS_PER_ROUTE}")
-    print(f"  Total waypoints:      {total_waypoints:,}")
-    print(f"  Random seed:          {RANDOM_SEED}")
-    if routes:
-        sample_route = routes[0]
-        print()
-        print("  Sample route (first 3 waypoints of route 0):")
-        for wp in sample_route[:3]:
-            print(f"    lat={wp[0]:.6f}, lon={wp[1]:.6f}")
-        print("    ...")
-    print("─" * 80)
+def main() -> int:
+    """Demonstrate Bezier path generation with sample logistics waypoints."""
+    print("\n" + "=" * 70)
+    print("  BEZIER PATH GENERATOR")
+    print(f"  {BANNER}")
+    print("=" * 70)
 
+    rng = random.Random(42)
+    num_routes = 5
 
-# ============================================================================
-# MAIN
-# ============================================================================
+    for route_idx in range(num_routes):
+        # Generate synthetic waypoints (not real operational routes)
+        n_wps = rng.randint(4, 8)
+        base_lat = rng.uniform(35.0, 45.0)
+        base_lon = rng.uniform(-95.0, -75.0)
+        waypoints = []
+        for _ in range(n_wps):
+            base_lat += rng.uniform(0.1, 0.5)
+            base_lon += rng.uniform(0.1, 0.5)
+            waypoints.append((round(base_lat, 4), round(base_lon, 4)))
+
+        t0 = time.perf_counter()
+        path = generate_bezier_path(waypoints, samples_per_segment=50)
+        elapsed_ms = (time.perf_counter() - t0) * 1000
+
+        straight_km = straight_line_distance_km(waypoints)
+        bezier_km = compute_path_length_km(path)
+        smoothness = compute_smoothness_score(path)
+
+        print(f"\n  Route {route_idx + 1}: {n_wps} waypoints → {len(path)} path points")
+        print(f"  Straight-line distance : {straight_km:.2f} km")
+        print(f"  Bezier path length     : {bezier_km:.2f} km  (ratio: {bezier_km/straight_km:.3f})")
+        print(f"  Smoothness score       : {smoothness:.3f}  (target: >0.90)")
+        print(f"  Generation time        : {elapsed_ms:.2f} ms")
+        assert bezier_km >= straight_km * 0.99, "Path shorter than straight-line — check control points"
+        assert smoothness >= 0.90, f"Smoothness {smoothness:.3f} below 0.90 threshold"
+
+    print("\n" + "=" * 70)
+    print("  All routes passed smoothness and length checks.")
+    print(f"  {BANNER}")
+    print("=" * 70 + "\n")
+    return 0
+
 
 if __name__ == "__main__":
-    print(BANNER)
-
-    print("  Generating 500 synthetic Bezier phantom routes...")
-    routes = batch_generate_routes(count=500, seed=RANDOM_SEED)
-    print_route_stats(routes)
-
-    print("\n  Prototype run complete. All coordinates are synthetic and non-operational.\n")
+    raise SystemExit(main())

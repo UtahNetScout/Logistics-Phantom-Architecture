@@ -1,190 +1,218 @@
 #!/usr/bin/env python3
 """
-Agent B Parallel Swarm Generator
-=================================
-Unclassified Synthetic Prototype - Portfolio PoC
-Not operational telemetry. Not deployment-ready deception tooling.
+Agent B Parallel Swarm Generator - Logistics Phantom Architecture
+=================================================================
 
-This module demonstrates Agent B's capability to generate large batches of
-synthetic phantom convoy telemetry using Python's multiprocessing library.
-It validates one prototype assumption: that parallel generation can achieve
-100x-1000x phantom multipliers within practical latency budgets.
+UNCLASSIFIED SYNTHETIC PROTOTYPE DATA
+PORTFOLIO PROOF-OF-CONCEPT — NOT OPERATIONAL TELEMETRY
+NOT DEPLOYMENT-READY DECEPTION TOOLING
 
-Methodology:
-    - Spawns a configurable number of worker processes via multiprocessing.Pool
-    - Each worker generates a batch of synthetic phantom convoy records
-    - Records include randomized but plausible waypoint sequences
-    - Deterministic seeds allow reproducible benchmark runs
-    - Throughput and latency metrics are printed to console
+Simulates Agent B's role in the Logistics Phantom Architecture: generating
+large batches of synthetic phantom convoy records in parallel. Uses Python
+multiprocessing to achieve near-linear speedup across CPU cores.
 
-Connections to Architecture:
-    - Implements Agent B (Phantom Swarm Generator) from the three-agent design
-    - Output is consumed by Agent C (spatial-hash validator) before broadcast
-    - Agent A (Router) would supply seed parameters in an operational pipeline
+Key Features:
+    - Configurable phantom multiplier (100x, 250x, 1000x)
+    - Speed profiles constrained to realistic logistics range (35–55 km/h)
+    - Rest stops at realistic intervals (fuel/crew rotation, 150–300 km)
+    - Temporal jitter of ±30 minutes per waypoint
+    - Deterministic with fixed random seeds for reproducibility
+    - Printed metrics: generation time, phantom count, per-phantom latency
 
 Usage:
-    python src/prototype/agent_b_parallel_swarm_generator.py
+    python3 agent_b_parallel_swarm_generator.py
+
+Author: Logistics Phantom Prototype
+Date: 2026
 """
 
-import multiprocessing
+import math
 import random
 import time
+from multiprocessing import Pool, cpu_count
 from typing import Dict, List, Tuple
 
 # ============================================================================
 # BANNER
 # ============================================================================
 
-BANNER = """
-================================================================================
-  AGENT B PARALLEL SWARM GENERATOR
-  Unclassified Synthetic Prototype - Portfolio PoC
-  Not operational telemetry. Not deployment-ready deception tooling.
-================================================================================
-"""
+BANNER = (
+    "UNCLASSIFIED SYNTHETIC PROTOTYPE DATA | "
+    "PORTFOLIO PROOF-OF-CONCEPT | "
+    "NOT OPERATIONAL TELEMETRY"
+)
 
 # ============================================================================
-# CONFIGURATION
+# CONFIGURATION CONSTANTS
 # ============================================================================
 
-DEFAULT_MULTIPLIER = 1000       # Number of phantom convoys to generate
-WAYPOINTS_PER_CONVOY = 5        # Waypoints per synthetic convoy
-NUM_WORKERS = max(2, multiprocessing.cpu_count() - 1)  # Worker processes
-RANDOM_SEED = 42                # Deterministic seed for reproducibility
-
+WAYPOINTS_PER_PHANTOM: int = 8          # Waypoints per phantom convoy route
+MIN_SPEED_KMH: float = 35.0             # Minimum logistics vehicle speed (km/h)
+MAX_SPEED_KMH: float = 55.0             # Maximum logistics vehicle speed (km/h)
+REST_INTERVAL_KM_MIN: float = 150.0     # Minimum distance between rest stops (km)
+REST_INTERVAL_KM_MAX: float = 300.0     # Maximum distance between rest stops (km)
+TEMPORAL_JITTER_MIN_MIN: float = -30.0  # Minimum temporal jitter (minutes)
+TEMPORAL_JITTER_MAX_MIN: float = 30.0   # Maximum temporal jitter (minutes)
+GEO_LAT_MIN: float = 30.0              # Geographic bounding box — min latitude
+GEO_LAT_MAX: float = 50.0              # Geographic bounding box — max latitude
+GEO_LON_MIN: float = -100.0            # Geographic bounding box — min longitude
+GEO_LON_MAX: float = -70.0             # Geographic bounding box — max longitude
+EARTH_RADIUS_KM: float = 6371.0
 
 # ============================================================================
-# CONVOY GENERATION (runs in worker processes)
+# PURE FUNCTIONS (picklable for multiprocessing)
 # ============================================================================
 
-def generate_phantom_batch(args: Tuple[int, int, int]) -> List[Dict]:
+
+def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Return great-circle distance in km between two lat/lon points."""
+    r = EARTH_RADIUS_KM
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+    return 2 * r * math.asin(math.sqrt(a))
+
+
+def _generate_single_phantom(args: Tuple[int, int]) -> Dict:
     """
-    Generate a batch of synthetic phantom convoy records.
+    Generate one phantom convoy record.
 
-    This function is executed in a separate worker process. Each phantom record
-    contains a synthetic convoy ID and a sequence of randomized (lat, lon)
-    waypoints. The coordinates are not tied to any real operational area.
+    Designed as a module-level function so it can be pickled by multiprocessing.
 
     Args:
-        args: Tuple of (batch_id, batch_size, seed_offset) used to produce
-              a deterministic but unique set of records per worker.
+        args: Tuple of (phantom_index, base_seed)
 
     Returns:
-        List of phantom convoy dicts, each with 'convoy_id' and 'waypoints'.
+        Dict containing phantom_id, waypoints, speed_profile_kmh,
+        rest_stops, and timestamp_offsets_min.
     """
-    batch_id, batch_size, seed_offset = args
-    rng = random.Random(RANDOM_SEED + seed_offset)
+    phantom_idx, base_seed = args
+    rng = random.Random(base_seed + phantom_idx)
 
-    records = []
-    for i in range(batch_size):
-        # Generate a random anchor point (non-operational synthetic coordinates)
-        anchor_lat = rng.uniform(-60.0, 60.0)
-        anchor_lon = rng.uniform(-170.0, 170.0)
+    # Generate route waypoints within geographic bounds
+    base_lat = rng.uniform(GEO_LAT_MIN, GEO_LAT_MAX)
+    base_lon = rng.uniform(GEO_LON_MIN, GEO_LON_MAX)
+    waypoints: List[Tuple[float, float]] = []
+    for _ in range(WAYPOINTS_PER_PHANTOM):
+        lat = base_lat + rng.uniform(-2.0, 2.0)
+        lon = base_lon + rng.uniform(-2.0, 2.0)
+        lat = max(GEO_LAT_MIN - 5, min(GEO_LAT_MAX + 5, lat))
+        lon = max(GEO_LON_MIN - 5, min(GEO_LON_MAX + 5, lon))
+        waypoints.append((round(lat, 6), round(lon, 6)))
+        base_lat = lat
+        base_lon = lon
 
-        waypoints = []
-        for _ in range(WAYPOINTS_PER_CONVOY):
-            lat = anchor_lat + rng.uniform(-1.0, 1.0)
-            lon = anchor_lon + rng.uniform(-1.0, 1.0)
-            waypoints.append({"lat": round(lat, 6), "lon": round(lon, 6)})
+    # Build speed profile — one speed per leg
+    speed_profile: List[float] = []
+    for _ in range(len(waypoints) - 1):
+        speed = rng.uniform(MIN_SPEED_KMH, MAX_SPEED_KMH)
+        speed_profile.append(round(speed, 2))
 
-        records.append({
-            "convoy_id": f"PHANTOM-B{batch_id:03d}-{i:06d}",
-            "waypoints": waypoints,
-            "label": "synthetic_phantom",
-            "classification": "UNCLASSIFIED-SYNTHETIC-PROTOTYPE",
-        })
+    # Compute cumulative distances and schedule rest stops
+    rest_stops: List[int] = []
+    cumulative_km = 0.0
+    next_rest_km = rng.uniform(REST_INTERVAL_KM_MIN, REST_INTERVAL_KM_MAX)
+    for i in range(len(waypoints) - 1):
+        seg_km = _haversine_km(*waypoints[i], *waypoints[i + 1])
+        cumulative_km += seg_km
+        if cumulative_km >= next_rest_km:
+            rest_stops.append(i + 1)
+            cumulative_km = 0.0
+            next_rest_km = rng.uniform(REST_INTERVAL_KM_MIN, REST_INTERVAL_KM_MAX)
 
-    return records
+    # Apply temporal jitter to each waypoint timestamp
+    timestamp_offsets_min: List[float] = [
+        round(rng.uniform(TEMPORAL_JITTER_MIN_MIN, TEMPORAL_JITTER_MAX_MIN), 2)
+        for _ in waypoints
+    ]
+
+    return {
+        "phantom_id": phantom_idx,
+        "waypoints": waypoints,
+        "speed_profile_kmh": speed_profile,
+        "rest_stops": rest_stops,
+        "timestamp_offsets_min": timestamp_offsets_min,
+    }
 
 
-def run_parallel_swarm(multiplier: int = DEFAULT_MULTIPLIER,
-                       num_workers: int = NUM_WORKERS) -> Tuple[List[Dict], float]:
+# ============================================================================
+# PUBLIC API
+# ============================================================================
+
+
+def generate_phantom_swarm(
+    num_phantoms: int,
+    seed: int = 42,
+    n_workers: int = None,
+) -> List[Dict]:
     """
-    Run parallel phantom convoy generation across multiple worker processes.
+    Generate a swarm of synthetic phantom convoy records in parallel.
 
-    Divides the total requested phantom count into equal batches, distributes
-    those batches to a multiprocessing pool, and collects results. Returns
-    the full list of generated records along with wall-clock generation time.
+    Uses Python multiprocessing.Pool to distribute work across CPU cores,
+    achieving near-linear speedup for large phantom counts.
 
     Args:
-        multiplier: Total number of phantom convoys to generate.
-        num_workers: Number of parallel worker processes to use.
+        num_phantoms: Total number of phantom convoys to generate.
+        seed: Base random seed for deterministic output.
+        n_workers: Worker processes (defaults to cpu_count()).
 
     Returns:
-        Tuple of (all_records, elapsed_ms) where elapsed_ms is wall-clock
-        generation time in milliseconds.
+        List of phantom dicts, each containing waypoints, speed profile,
+        rest stops, and temporal jitter offsets.
     """
-    batch_size = max(1, multiplier // num_workers)
-    remainder = multiplier - batch_size * num_workers
+    if n_workers is None:
+        n_workers = max(1, cpu_count())
 
-    # Build batch argument list
-    batch_args = []
-    for worker_idx in range(num_workers):
-        size = batch_size + (1 if worker_idx < remainder else 0)
-        batch_args.append((worker_idx, size, worker_idx * 10000))
+    args = [(i, seed) for i in range(num_phantoms)]
 
-    start_time = time.perf_counter()
-    with multiprocessing.Pool(processes=num_workers) as pool:
-        batch_results = pool.map(generate_phantom_batch, batch_args)
-    elapsed_ms = (time.perf_counter() - start_time) * 1000.0
+    if n_workers == 1:
+        # Serial fallback (also used in test environments without fork support)
+        return [_generate_single_phantom(a) for a in args]
 
-    # Flatten results
-    all_records: List[Dict] = []
-    for batch in batch_results:
-        all_records.extend(batch)
+    with Pool(processes=n_workers) as pool:
+        results = pool.map(_generate_single_phantom, args)
 
-    return all_records, elapsed_ms
+    return results
 
 
 # ============================================================================
-# REPORTING
+# MAIN EXECUTION
 # ============================================================================
 
-def print_metrics(records: List[Dict], elapsed_ms: float,
-                  multiplier: int, num_workers: int) -> None:
-    """
-    Print generation throughput and latency metrics to console.
 
-    Args:
-        records: All generated phantom convoy records.
-        elapsed_ms: Total wall-clock time in milliseconds.
-        multiplier: Requested phantom count.
-        num_workers: Number of worker processes used.
-    """
-    throughput = len(records) / (elapsed_ms / 1000.0) if elapsed_ms > 0 else 0.0
+def main() -> int:
+    """Run Agent B swarm generation at 100x, 250x, and 1000x multipliers."""
+    print("\n" + "=" * 70)
+    print("  AGENT B PARALLEL SWARM GENERATOR")
+    print(f"  {BANNER}")
+    print("=" * 70)
 
-    print("\n" + "─" * 80)
-    print("  GENERATION METRICS")
-    print("─" * 80)
-    print(f"  Requested multiplier:       {multiplier:,} phantoms")
-    print(f"  Records generated:          {len(records):,}")
-    print(f"  Worker processes:           {num_workers}")
-    print(f"  Waypoints per convoy:       {WAYPOINTS_PER_CONVOY}")
-    print(f"  Wall-clock latency:         {elapsed_ms:.2f} ms")
-    print(f"  Throughput:                 {throughput:,.0f} convoys/second")
-    print()
-    print("  Sample record (first phantom):")
-    if records:
-        sample = records[0]
-        print(f"    convoy_id: {sample['convoy_id']}")
-        print(f"    label:     {sample['label']}")
-        print(f"    waypoints: {sample['waypoints'][:2]} ...")
-    print("─" * 80)
+    multipliers = [100, 250, 1000]
+    for multiplier in multipliers:
+        t0 = time.perf_counter()
+        phantoms = generate_phantom_swarm(num_phantoms=multiplier, seed=42)
+        elapsed = time.perf_counter() - t0
 
+        latency_ms = elapsed * 1000
+        per_phantom_us = (elapsed / multiplier) * 1_000_000
 
-# ============================================================================
-# MAIN
-# ============================================================================
+        print(f"\n  Multiplier : {multiplier}x")
+        print(f"  Generated  : {len(phantoms):,} phantom convoys")
+        print(f"  Total time : {latency_ms:.1f} ms")
+        print(f"  Per phantom: {per_phantom_us:.1f} µs")
+        sample = phantoms[0]
+        print(f"  Sample ID  : {sample['phantom_id']}")
+        print(f"  Waypoints  : {len(sample['waypoints'])}")
+        print(f"  Rest stops : {sample['rest_stops']}")
+        speeds = sample["speed_profile_kmh"]
+        print(f"  Speed range: {min(speeds):.1f}–{max(speeds):.1f} km/h")
+
+    print("\n" + "=" * 70)
+    print("  Prototype complete. All data synthetic.")
+    print("=" * 70 + "\n")
+    return 0
+
 
 if __name__ == "__main__":
-    print(BANNER)
-
-    for multiplier in [100, 1000]:
-        print(f"\n  [RUN] Generating {multiplier:,} phantom convoys with "
-              f"{NUM_WORKERS} worker(s)...")
-        records, elapsed_ms = run_parallel_swarm(
-            multiplier=multiplier, num_workers=NUM_WORKERS
-        )
-        print_metrics(records, elapsed_ms, multiplier, NUM_WORKERS)
-
-    print("\n  Prototype run complete. All data is unclassified synthetic output.\n")
+    raise SystemExit(main())

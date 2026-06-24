@@ -1,0 +1,127 @@
+name: Logistics Phantom — Performance Benchmarks
+
+on:
+  schedule:
+    # Run monthly on the 1st at 06:00 UTC
+    - cron: "0 6 1 * *"
+  workflow_dispatch:
+    inputs:
+      phantom_count:
+        description: "Max phantom count for extended benchmark"
+        required: false
+        default: "10000"
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    name: Performance Benchmark Report
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements-test.txt
+
+      - name: Run Agent B scalability benchmark
+        run: |
+          echo "=== AGENT B SCALABILITY BENCHMARK ===" | tee benchmark-agent-b.txt
+          python -m pytest tests/performance/test_scalability.py -v -s --tb=short \
+            2>&1 | tee -a benchmark-agent-b.txt
+
+      - name: Run Agent C latency benchmark
+        run: |
+          echo "=== AGENT C LATENCY BENCHMARK ===" | tee benchmark-agent-c.txt
+          python -m pytest tests/performance/test_latency.py -v -s --tb=short \
+            2>&1 | tee -a benchmark-agent-c.txt
+
+      - name: Run red-team simulation benchmark
+        run: |
+          echo "=== RED-TEAM SNR BENCHMARK ===" | tee benchmark-red-team.txt
+          python -m pytest tests/adversary/ -v -s --tb=short \
+            2>&1 | tee -a benchmark-red-team.txt
+
+      - name: Run full prototype scripts
+        run: |
+          echo "=== PROTOTYPE MODULE BENCHMARKS ===" | tee benchmark-scripts.txt
+          python src/prototype/agent_b_parallel_swarm_generator.py 2>&1 \
+            | tee -a benchmark-scripts.txt
+          python src/prototype/red_team_simulation_lab.py 2>&1 \
+            | tee -a benchmark-scripts.txt
+
+      - name: Compare against baseline thresholds
+        run: |
+          python - <<'EOF'
+          import subprocess, sys, time
+
+          # ── Agent B: 1,000 phantoms < 5 s ──────────────────────────────
+          from src.prototype.agent_b_parallel_swarm_generator import generate_phantom_swarm
+          t0 = time.perf_counter()
+          p = generate_phantom_swarm(1000, seed=42, n_workers=1)
+          gen_s = time.perf_counter() - t0
+          print(f"Agent B (1000): {gen_s*1000:.1f} ms  threshold=5000ms  {'PASS' if gen_s < 5 else 'FAIL'}")
+
+          # ── Agent C: 10,000 phantoms < 100 ms ──────────────────────────
+          import random
+          from src.prototype.agent_c_spatial_hash_validator import SpatialHashValidator
+          v = SpatialHashValidator()
+          v.add_real_waypoints([(40.71+i*0.01, -74.0) for i in range(5)])
+          batch = [[(random.uniform(-60,60), random.uniform(-170,170)) for _ in range(5)]
+                   for _ in range(10_000)]
+          t0 = time.perf_counter()
+          r = v.validate_batch(batch)
+          val_ms = (time.perf_counter() - t0) * 1000
+          print(f"Agent C (10k):  {val_ms:.1f} ms  threshold=100ms  {'PASS' if val_ms < 100 else 'FAIL'}")
+
+          # ── Red-team: SNR < 0.1 at 100x ────────────────────────────────
+          import numpy as np
+          from src.prototype.red_team_simulation_lab import (
+              _make_historical_features, _make_real_convoy_features,
+              train_anomaly_detector, run_detection_experiment,
+              HISTORICAL_CONVOY_COUNT, REAL_CONVOY_COUNT, RANDOM_SEED
+          )
+          rng = np.random.default_rng(RANDOM_SEED)
+          hist = _make_historical_features(HISTORICAL_CONVOY_COUNT, rng)
+          det = train_anomaly_detector(hist, random_state=RANDOM_SEED)
+          rng2 = np.random.default_rng(RANDOM_SEED+1)
+          real = _make_real_convoy_features(REAL_CONVOY_COUNT, rng2)
+          rng3 = np.random.default_rng(RANDOM_SEED+100)
+          result = run_detection_experiment(100, det, real, hist, rng3)
+          snr = result['snr']
+          print(f"Red-team SNR:   {snr:.4f}  threshold=0.1  {'PASS' if snr < 0.1 else 'FAIL'}")
+
+          EOF
+
+      - name: Post benchmark summary
+        if: always()
+        run: |
+          echo ""
+          echo "============================================================"
+          echo "  BENCHMARK RESULTS — $(date -u '+%Y-%m-%d %H:%M UTC')"
+          echo "  UNCLASSIFIED SYNTHETIC PROTOTYPE DATA"
+          echo "============================================================"
+          cat benchmark-agent-b.txt benchmark-agent-c.txt \
+              benchmark-red-team.txt 2>/dev/null | \
+            grep -E "(passed|failed|PASS|FAIL|ms|km/h)" | tail -20
+          echo "============================================================"
+
+      - name: Upload benchmark artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-report-${{ github.run_number }}
+          path: |
+            benchmark-agent-b.txt
+            benchmark-agent-c.txt
+            benchmark-red-team.txt
+            benchmark-scripts.txt
+          retention-days: 90

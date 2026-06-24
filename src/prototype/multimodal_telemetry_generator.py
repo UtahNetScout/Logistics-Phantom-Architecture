@@ -1,271 +1,258 @@
 #!/usr/bin/env python3
 """
-Multimodal Telemetry Generator
-================================
-Unclassified Synthetic Prototype - Portfolio PoC
-Not operational telemetry. Not deployment-ready deception tooling.
+Multimodal Synthetic Telemetry Generator - Logistics Phantom Architecture
+=========================================================================
 
-This module synthesizes multi-domain telemetry records that represent the
-kind of cross-modal signatures a phantom convoy would need to produce to
-be plausible across different sensor modalities.
+UNCLASSIFIED SYNTHETIC PROTOTYPE DATA
+PORTFOLIO PROOF-OF-CONCEPT — NOT OPERATIONAL TELEMETRY
+NOT DEPLOYMENT-READY DECEPTION TOOLING
 
-A single-modal phantom (position only) is trivially filtered by any sensor
-that correlates across domains. To raise the cost of adversary filtering,
-phantoms must exhibit correlated physical, RF, and logistics metadata.
+Generates representative synthetic telemetry across three modalities for
+each phantom convoy waypoint:
+    1. Physical — GPS position, heading, speed, altitude, fuel, payload
+    2. RF / Communications — transmit power, frequency band, call-sign,
+       message interval, signal strength
+    3. Logistics Manifest — cargo class, tonnage, origin, destination,
+       driver-rotation window, scheduled ETA
 
-Modalities generated:
-    Physical:  Lat/lon position, speed, heading, vehicle class estimate
-    RF:        Synthetic frequency band, signal strength, duty cycle
-    Logistics: Manifest weight class, cargo category, origin/destination codes
-
-All values are statistically plausible ranges for training and simulation
-purposes only. No real frequencies, call signs, or logistics networks are
-referenced.
-
-Connections to Architecture:
-    - Extends Agent B output with cross-modal metadata fields
-    - Increases adversary anomaly-detection cost (multi-domain correlation)
-    - Feeds Agent C for cross-modal consistency validation (future work)
+Cross-modal consistency is intentional: fuel consumption tracks distance,
+RF activity correlates with rest stops, payload tonnage matches refuel
+intervals. This is a prototype demonstration of the metadata alignment
+problem; actual cryptographic realism is not implemented.
 
 Usage:
-    python src/prototype/multimodal_telemetry_generator.py
+    python3 multimodal_telemetry_generator.py
+
+Author: Logistics Phantom Prototype
+Date: 2026
 """
 
+import math
 import random
-import uuid
-from typing import Dict, List
+import time
+from typing import Dict, List, Tuple
+
+import numpy as np
 
 # ============================================================================
 # BANNER
 # ============================================================================
 
-BANNER = """
-================================================================================
-  MULTIMODAL TELEMETRY GENERATOR
-  Unclassified Synthetic Prototype - Portfolio PoC
-  Not operational telemetry. Not deployment-ready deception tooling.
-================================================================================
-"""
+BANNER = (
+    "UNCLASSIFIED SYNTHETIC PROTOTYPE DATA | "
+    "PORTFOLIO PROOF-OF-CONCEPT | "
+    "NOT OPERATIONAL TELEMETRY"
+)
 
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
 
-RANDOM_SEED = 42
+FUEL_CONSUMPTION_L_PER_100KM: float = 35.0     # Heavy logistics truck (L/100km)
+TANK_CAPACITY_L: float = 800.0                  # Fuel tank capacity (litres)
+CARGO_CLASSES = ["Class I", "Class III", "Class V", "Class IX"]
+RF_BANDS = ["VHF", "UHF", "HF", "SATCOM"]
+EARTH_RADIUS_KM = 6371.0
 
-# Physical parameters (synthetic, non-operational)
-SPEED_MEAN_KMH = 50.0
-SPEED_STD_KMH = 12.0
-HEADING_RANGE = (0.0, 360.0)
+# ============================================================================
+# HELPER MATH
+# ============================================================================
 
-# RF parameters (synthetic, representative ranges only)
-RF_FREQUENCY_BANDS_MHZ = [30.0, 88.0, 225.0, 400.0, 1350.0]   # Generic band centers
-RF_POWER_DBM_RANGE = (-90.0, -50.0)
-RF_DUTY_CYCLE_RANGE = (0.05, 0.95)
 
-# Logistics parameters (generic categories, no real network data)
-CARGO_CATEGORIES = ["SUPPLY", "EQUIPMENT", "FUEL", "MEDICAL", "PERSONNEL"]
-WEIGHT_CLASSES = ["LIGHT", "MEDIUM", "HEAVY"]
-REGION_CODES = ["REG-A", "REG-B", "REG-C", "REG-D", "REG-E"]
+def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Return great-circle distance in km."""
+    r = EARTH_RADIUS_KM
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlam = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlam / 2) ** 2
+    return 2 * r * math.asin(math.sqrt(a))
+
+
+def _bearing_deg(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Return initial bearing (degrees, 0–360) from point 1 to point 2."""
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dlam = math.radians(lon2 - lon1)
+    x = math.sin(dlam) * math.cos(phi2)
+    y = math.cos(phi1) * math.sin(phi2) - math.sin(phi1) * math.cos(phi2) * math.cos(dlam)
+    return (math.degrees(math.atan2(x, y)) + 360) % 360
 
 
 # ============================================================================
-# MODALITY GENERATORS
+# PUBLIC API
 # ============================================================================
 
-def generate_physical_record(rng: random.Random) -> Dict:
-    """
-    Generate a synthetic physical telemetry record.
 
-    Represents position, velocity, and vehicle class data that would be
-    produced by GPS/INS sensors on a logistics vehicle.
+def generate_telemetry(
+    waypoints: List[Tuple[float, float]],
+    speed_profile_kmh: List[float] = None,
+    seed: int = 42,
+) -> Dict:
+    """
+    Generate cross-modal synthetic telemetry for one phantom convoy route.
 
     Args:
-        rng: Seeded random generator.
-
-    Returns:
-        Dict with physical telemetry fields.
-    """
-    return {
-        "lat": round(rng.uniform(-60.0, 60.0), 6),
-        "lon": round(rng.uniform(-170.0, 170.0), 6),
-        "speed_kmh": round(max(0.0, rng.gauss(SPEED_MEAN_KMH, SPEED_STD_KMH)), 2),
-        "heading_deg": round(rng.uniform(*HEADING_RANGE), 1),
-        "vehicle_class": rng.choice(["WHEELED", "TRACKED", "ROTARY", "FIXED"]),
-        "modality": "PHYSICAL",
-        "classification": "UNCLASSIFIED-SYNTHETIC",
-    }
-
-
-def generate_rf_record(physical_record: Dict, rng: random.Random) -> Dict:
-    """
-    Generate a synthetic RF telemetry record correlated with a physical record.
-
-    The RF record shares positional context with the physical record to
-    simulate cross-modal correlation. Frequency and power values are
-    representative of generic communications bands and are NOT tied to
-    any real spectrum allocations or signal intelligence.
-
-    Args:
-        physical_record: Associated physical telemetry (for position correlation).
-        rng: Seeded random generator.
-
-    Returns:
-        Dict with RF metadata fields.
-    """
-    freq_center = rng.choice(RF_FREQUENCY_BANDS_MHZ)
-    freq_offset = rng.uniform(-5.0, 5.0)
-    return {
-        "lat": physical_record["lat"] + rng.uniform(-0.001, 0.001),
-        "lon": physical_record["lon"] + rng.uniform(-0.001, 0.001),
-        "frequency_mhz": round(freq_center + freq_offset, 2),
-        "signal_strength_dbm": round(rng.uniform(*RF_POWER_DBM_RANGE), 2),
-        "duty_cycle": round(rng.uniform(*RF_DUTY_CYCLE_RANGE), 3),
-        "burst_count": rng.randint(1, 20),
-        "modality": "RF",
-        "classification": "UNCLASSIFIED-SYNTHETIC",
-    }
-
-
-def generate_logistics_manifest(rng: random.Random) -> Dict:
-    """
-    Generate a synthetic logistics manifest record.
-
-    Represents supply chain metadata such as cargo category, weight class,
-    and notional origin/destination region codes. No real logistics networks,
-    supply routes, or operational data are referenced.
-
-    Args:
-        rng: Seeded random generator.
-
-    Returns:
-        Dict with logistics manifest fields.
-    """
-    return {
-        "manifest_id": f"MFT-{uuid.UUID(int=rng.getrandbits(128)).hex[:8].upper()}",
-        "cargo_category": rng.choice(CARGO_CATEGORIES),
-        "weight_class": rng.choice(WEIGHT_CLASSES),
-        "unit_count": rng.randint(1, 50),
-        "origin_region": rng.choice(REGION_CODES),
-        "destination_region": rng.choice(REGION_CODES),
-        "priority_level": rng.randint(1, 5),
-        "modality": "LOGISTICS",
-        "classification": "UNCLASSIFIED-SYNTHETIC",
-    }
-
-
-# ============================================================================
-# MULTIMODAL RECORD ASSEMBLY
-# ============================================================================
-
-def generate_multimodal_record(convoy_id: str, rng: random.Random) -> Dict:
-    """
-    Assemble a complete multimodal telemetry record for one phantom convoy.
-
-    Combines physical, RF, and logistics fields into a single record that
-    a phantom convoy would emit across multiple sensor domains.
-
-    Args:
-        convoy_id: Unique identifier for this phantom convoy.
-        rng: Seeded random generator.
-
-    Returns:
-        Dict with all three modality sub-records nested under their keys.
-    """
-    physical = generate_physical_record(rng)
-    rf = generate_rf_record(physical, rng)
-    logistics = generate_logistics_manifest(rng)
-
-    return {
-        "convoy_id": convoy_id,
-        "record_type": "MULTIMODAL_PHANTOM",
-        "classification": "UNCLASSIFIED-SYNTHETIC-PROTOTYPE",
-        "physical": physical,
-        "rf": rf,
-        "logistics": logistics,
-    }
-
-
-def batch_generate_multimodal(count: int, seed: int = RANDOM_SEED) -> List[Dict]:
-    """
-    Generate a batch of multimodal phantom telemetry records.
-
-    Args:
-        count: Number of phantom records to generate.
+        waypoints: Ordered list of (lat, lon) tuples for the phantom route.
+        speed_profile_kmh: Speed in km/h at each leg; generated if None.
         seed: Random seed for reproducibility.
 
     Returns:
-        List of multimodal phantom records.
+        Dict with keys 'physical', 'rf', and 'logistics_manifest', each
+        containing a list of records (one per waypoint or per leg).
     """
     rng = random.Random(seed)
-    return [
-        generate_multimodal_record(f"PHANTOM-MM-{i:06d}", rng)
-        for i in range(count)
+
+    n = len(waypoints)
+    if n < 2:
+        raise ValueError("At least 2 waypoints are required.")
+
+    if speed_profile_kmh is None:
+        speed_profile_kmh = [rng.uniform(35.0, 55.0) for _ in range(n - 1)]
+
+    # Precompute segment distances and cumulative distance
+    seg_km = [
+        _haversine_km(*waypoints[i], *waypoints[i + 1])
+        for i in range(n - 1)
     ]
+    total_km = sum(seg_km)
+    cum_km = [0.0]
+    for d in seg_km:
+        cum_km.append(cum_km[-1] + d)
+
+    # ── Logistics manifest (route-level) ──────────────────────────────────
+    cargo_class = rng.choice(CARGO_CLASSES)
+    payload_tonnes = rng.uniform(8.0, 22.0)
+    refuel_interval_km = TANK_CAPACITY_L / (FUEL_CONSUMPTION_L_PER_100KM / 100.0)
+    origin_id = f"DEPOT-{rng.randint(100, 999)}"
+    destination_id = f"FOB-{rng.randint(10, 99)}"
+
+    manifest: Dict = {
+        "cargo_class": cargo_class,
+        "payload_tonnes": round(payload_tonnes, 2),
+        "origin_id": origin_id,
+        "destination_id": destination_id,
+        "total_route_km": round(total_km, 2),
+        "estimated_refuels": int(total_km / refuel_interval_km),
+        "driver_rotation_window_h": round(rng.uniform(4.0, 8.0), 1),
+        "scheduled_eta_offset_min": round(rng.uniform(-30.0, 30.0), 1),
+    }
+
+    # ── Physical telemetry (per-waypoint) ─────────────────────────────────
+    physical: List[Dict] = []
+    fuel_remaining_l = TANK_CAPACITY_L
+    for i, (lat, lon) in enumerate(waypoints):
+        bearing = (
+            _bearing_deg(*waypoints[i - 1], lat, lon) if i > 0 else 0.0
+        )
+        if i < n - 1:
+            speed = speed_profile_kmh[i]
+            dist_since_last = seg_km[i]
+            fuel_used = dist_since_last * (FUEL_CONSUMPTION_L_PER_100KM / 100.0)
+            fuel_remaining_l = max(0.0, fuel_remaining_l - fuel_used)
+        else:
+            speed = 0.0
+
+        physical.append({
+            "waypoint_idx": i,
+            "lat": lat,
+            "lon": lon,
+            "altitude_m": round(rng.uniform(100.0, 1500.0), 1),
+            "speed_kmh": round(speed, 2),
+            "heading_deg": round(bearing, 1),
+            "fuel_remaining_l": round(fuel_remaining_l, 1),
+            "payload_tonnes": round(payload_tonnes, 2),
+            "odometer_km": round(cum_km[i], 2),
+        })
+
+    # ── RF / Communications telemetry (per-waypoint) ──────────────────────
+    rf_band = rng.choice(RF_BANDS)
+    call_sign = f"PHANTOM-{rng.randint(1000, 9999)}"
+    rf: List[Dict] = []
+    for i, wp in enumerate(physical):
+        # RF activity increases at rest stops (speed → 0) and refuel points
+        is_rest = wp["speed_kmh"] < 5.0
+        tx_power_dbm = rng.uniform(20.0, 40.0) if is_rest else rng.uniform(5.0, 20.0)
+        msg_interval_s = rng.uniform(30.0, 120.0) if is_rest else rng.uniform(300.0, 900.0)
+        signal_strength_dbm = rng.uniform(-90.0, -50.0)
+
+        rf.append({
+            "waypoint_idx": i,
+            "call_sign": call_sign,
+            "rf_band": rf_band,
+            "tx_power_dbm": round(tx_power_dbm, 1),
+            "msg_interval_s": round(msg_interval_s, 1),
+            "signal_strength_dbm": round(signal_strength_dbm, 1),
+            "at_rest_stop": is_rest,
+        })
+
+    return {
+        "physical": physical,
+        "rf": rf,
+        "logistics_manifest": manifest,
+    }
 
 
 # ============================================================================
-# REPORTING
+# MAIN EXECUTION
 # ============================================================================
 
-def print_batch_stats(records: List[Dict]) -> None:
-    """
-    Print summary statistics for a generated multimodal batch.
 
-    Args:
-        records: List of multimodal phantom records.
-    """
-    cargo_counts: Dict[str, int] = {}
-    weight_counts: Dict[str, int] = {}
-    vehicle_counts: Dict[str, int] = {}
+def main() -> int:
+    """Demonstrate multimodal telemetry generation for several phantom convoys."""
+    print("\n" + "=" * 70)
+    print("  MULTIMODAL SYNTHETIC TELEMETRY GENERATOR")
+    print(f"  {BANNER}")
+    print("=" * 70)
 
-    for rec in records:
-        cat = rec["logistics"]["cargo_category"]
-        cargo_counts[cat] = cargo_counts.get(cat, 0) + 1
-        wt = rec["logistics"]["weight_class"]
-        weight_counts[wt] = weight_counts.get(wt, 0) + 1
-        vc = rec["physical"]["vehicle_class"]
-        vehicle_counts[vc] = vehicle_counts.get(vc, 0) + 1
+    rng = random.Random(42)
+    num_convoys = 3
 
-    print("\n" + "─" * 80)
-    print("  MULTIMODAL TELEMETRY BATCH STATS")
-    print("─" * 80)
-    print(f"  Records generated:    {len(records):,}")
-    print(f"  Modalities per record: 3 (physical, RF, logistics)")
-    print()
-    print("  Cargo categories:     " +
-          "  ".join(f"{k}={v}" for k, v in sorted(cargo_counts.items())))
-    print("  Weight classes:       " +
-          "  ".join(f"{k}={v}" for k, v in sorted(weight_counts.items())))
-    print("  Vehicle classes:      " +
-          "  ".join(f"{k}={v}" for k, v in sorted(vehicle_counts.items())))
+    for convoy_idx in range(num_convoys):
+        n_wps = rng.randint(4, 7)
+        base_lat = rng.uniform(35.0, 44.0)
+        base_lon = rng.uniform(-95.0, -76.0)
+        waypoints = []
+        for _ in range(n_wps):
+            base_lat += rng.uniform(0.2, 0.6)
+            base_lon += rng.uniform(0.2, 0.6)
+            waypoints.append((round(base_lat, 4), round(base_lon, 4)))
 
-    if records:
-        sample = records[0]
-        print()
-        print(f"  Sample record — convoy_id: {sample['convoy_id']}")
-        phys = sample["physical"]
-        rf = sample["rf"]
-        logi = sample["logistics"]
-        print(f"    Physical:  lat={phys['lat']}, lon={phys['lon']}, "
-              f"speed={phys['speed_kmh']} km/h, heading={phys['heading_deg']}°")
-        print(f"    RF:        freq={rf['frequency_mhz']} MHz, "
-              f"power={rf['signal_strength_dbm']} dBm, "
-              f"duty={rf['duty_cycle']}")
-        print(f"    Logistics: {logi['cargo_category']} / "
-              f"{logi['weight_class']} / manifest={logi['manifest_id']}")
-    print("─" * 80)
+        t0 = time.perf_counter()
+        telemetry = generate_telemetry(waypoints, seed=42 + convoy_idx)
+        elapsed_ms = (time.perf_counter() - t0) * 1000
 
+        manifest = telemetry["logistics_manifest"]
+        phys = telemetry["physical"]
+        rf = telemetry["rf"]
 
-# ============================================================================
-# MAIN
-# ============================================================================
+        print(f"\n  Convoy {convoy_idx + 1}: {n_wps} waypoints, {manifest['total_route_km']:.1f} km")
+        print(f"  Cargo class   : {manifest['cargo_class']}, {manifest['payload_tonnes']} t")
+        print(f"  Route         : {manifest['origin_id']} → {manifest['destination_id']}")
+        print(f"  Refuels       : {manifest['estimated_refuels']}")
+        print(f"  Fuel at start : {phys[0]['fuel_remaining_l']:.0f} L")
+        print(f"  Fuel at end   : {phys[-1]['fuel_remaining_l']:.0f} L")
+        print(f"  RF call sign  : {rf[0]['call_sign']}  band: {rf[0]['rf_band']}")
+        speeds = [p["speed_kmh"] for p in phys if p["speed_kmh"] > 0]
+        if speeds:
+            print(f"  Speed range   : {min(speeds):.1f}–{max(speeds):.1f} km/h")
+        print(f"  Generation    : {elapsed_ms:.2f} ms")
+
+        # Cross-modal consistency check
+        assert phys[-1]["fuel_remaining_l"] < phys[0]["fuel_remaining_l"], \
+            "Fuel should decrease along route"
+        rest_rf = [r for r in rf if r["at_rest_stop"]]
+        moving_rf = [r for r in rf if not r["at_rest_stop"]]
+        if rest_rf and moving_rf:
+            avg_rest_tx = sum(r["tx_power_dbm"] for r in rest_rf) / len(rest_rf)
+            avg_move_tx = sum(r["tx_power_dbm"] for r in moving_rf) / len(moving_rf)
+            assert avg_rest_tx > avg_move_tx, "RF power should be higher at rest stops"
+
+    print("\n" + "=" * 70)
+    print("  Multimodal telemetry generation complete. All data synthetic.")
+    print(f"  {BANNER}")
+    print("=" * 70 + "\n")
+    return 0
+
 
 if __name__ == "__main__":
-    print(BANNER)
-
-    print("  Generating 1,000 multimodal synthetic phantom telemetry records...")
-    records = batch_generate_multimodal(count=1000, seed=RANDOM_SEED)
-    print_batch_stats(records)
-
-    print("\n  Prototype run complete. All data is unclassified synthetic output.\n")
+    raise SystemExit(main())
