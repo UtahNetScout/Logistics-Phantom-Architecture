@@ -6,244 +6,129 @@
 
 ## ⚠️ Disclaimer
 
-This repository is an **unclassified architecture concept, PRD, and limited proof-of-concept** for portfolio and research purposes. It does not contain classified data, operational routes, real military telemetry, or deployment-ready deception tooling. This is a design document and validation concept intended for review by technical product managers, systems architects, and defense engineering teams.
+This repository is an **unclassified synthetic prototype data** package and **portfolio proof-of-concept** for architecture review. It is **not operational telemetry**, **not deployment-ready deception tooling**, and does not contain classified information, real operational coordinates, or real-world sensor feeds.
 
 ---
 
-## Origin of the Concept
+## Validation Status Matrix
 
-**Logistics Phantom** originated from a LinkedIn discussion about contested logistics and supply-chain survivability in AI-enabled threat environments. The central question: *How can agentic systems increase uncertainty for adversarial targeting systems while preserving friendly-force data integrity?*
-
-The project explores a specific architectural approach: deploying multi-agent swarms to generate synthetic telemetry that degrades an adversary's signal-to-noise ratio (SNR), making statistical anomaly detection computationally intractable. The goal is **not** to produce an operational deception system, but to architect and validate the core safety mechanisms required before such a system could be fielded.
-
-This document serves as:
-1. **Architectural blueprint** for future engineering teams
-2. **Product requirements document** (PRD) defining scope and constraints
-3. **Validation baseline** for the proof-of-concept (Agent C only, to date)
-4. **Research artifact** demonstrating systems thinking on AI-enabled deception
-
----
-
-## Scope and Validation Status
-
-This section clarifies what has been validated, what is architectural design, and what remains future work.
-
-### ✅ Implemented & Validated
-
-**Agent C (QA Gate & Ground Truth Validator)**
-- Fully implemented in `agent_c_validator.py`
-- Validated claim: Can screen 1,000 generated phantom convoy records against real convoy ground truth and reject intentionally contaminated records with sub-second latency (<50ms)
-- Proof: Running the script locally generates realistic phantom convoys, intentionally contaminates a small percentage, and validates separation with collision detection
-- Operational claim: This validates **one critical safety assumption**—that friendly-fire contamination can be detected and rejected at operational speeds
-
-### 🔷 Architectural Design (Not Yet Implemented)
-
-**Agent A (Router)** - Fully specified in architecture section; requires engineering implementation
-
-**Agent B (Phantom Swarm)** - Fully specified generator logic; requires full ML/agent implementation
-
-### ❌ Not Yet Validated (Future Work)
-
-- **Full swarm-scale deployment**: Agent C tested on 1,000 phantoms; field requires 10,000+
-- **Adversary detection degradation**: No red-team testing against actual detection models
-- **Operational effectiveness**: No measurement of SNR degradation vs. targeting success
-- **Sensor-fusion authenticity**: Phantom signatures are examples; require cryptographic validation
+| Capability / Workstream | Status |
+|---|---|
+| Architecture Blueprint | ✅ Complete |
+| Agent C Validation Gate | ✅ Prototype Tested |
+| Parallel Swarm Generation | ✅ Prototype Tested |
+| Bezier Path Generation | ✅ Prototype Tested |
+| Kinematic Velocity Profiling | ✅ Prototype Tested |
+| Red-Team Detection Lab | ✅ Prototype Tested |
+| Multimodal Synthetic Telemetry | ✅ Prototype Tested |
+| Operational Deployment | ❌ Not Implemented |
+| Real Sensor Integration | ❌ Not Implemented |
+| Classified Data Usage | ❌ None |
+| Phase 6 EW/C2 Coordination | ⏳ Future Roadmap Only |
 
 ---
 
-## Validated Claim vs. Future Claim
+## Prototype Modules Summary
 
-| Claim | Status | Evidence | Caveat |
-|-------|--------|----------|--------|
-| **Agent C validates 1,000 phantoms with sub-second latency** | ✅ VALIDATED | `agent_c_validator.py` executes in <50ms | Does not validate Agent B's phantom generator realism |
-| **Agent C rejection rate for contaminated records <1%** | ✅ VALIDATED | Script rejects all 5 intentionally contaminated records | Distance-based only; no temporal correlation analysis |
-| **Phantom swarms degrade SNR below thresholds** | ⚠️ NOT YET VALIDATED | Theoretical; requires red-team testing | Depends on adversary sensor model and ML detection |
-| **100x-1000x phantom multiplier is feasible** | ⚠️ PARTIALLY VALIDATED | PoC generates 1,000; scaling untested | Computational cost may exceed budgets |
-| **Full system prevents friendly-fire contamination** | ⚠️ NOT YET VALIDATED | Architecture sound; operational validation pending | Requires real C2 integration testing |
-
----
-
-## Executive Summary
-
-### The Problem: Contested Logistics in an AI-Enabled Threat Environment
-
-Modern supply chain networks face critical vulnerability: adversarial AI systems with multi-sensor fusion (SIGINT, IMINT, radar, GPS) can now track and target logistics networks with unprecedented precision.
-
-**The Signal-to-Noise Ratio Crisis**: Current decoys assume 1-to-1 threat model and fail against adversarial AI using statistical anomaly detection and temporal correlation.
-
-### The Solution: Swarm-Based Agentic Cyber Deception
-
-**Logistics Phantom** implements a multi-agent swarm architecture that floods adversarial sensors with thousands of synthetic logistics signatures. For every real convoy, Logistics Phantom generates orders of magnitude more phantom convoys that exhibit realistic spatiotemporal behavior but exist only in telemetry.
-
-**Strategic Effect**: The adversarial AI's decision problem becomes computationally intractable.
+- **`src/prototype/agent_b_parallel_swarm_generator.py`**
+  - Parallel Agent B synthetic swarm generation using multiprocessing from abstract seed parameters (`distance_km`, `duration_hours`, `terrain_type`, `asset_count`).
+  - Produces 100-1000 phantom convoy records per seed with speed profiles, rest stops, and sensor-noise metadata.
+- **`src/prototype/bezier_path_generator.py`**
+  - Generates smooth synthetic convoy routes with cubic Bezier interpolation from abstract waypoint seeds.
+  - Reports path smoothness and waypoint accuracy metrics.
+- **`src/prototype/kinematic_velocity_profiler.py`**
+  - Builds terrain-aware velocity traces with deceleration on curves and acceleration on straights.
+  - Reports mean velocity, acceleration variance, and realism score.
+- **`src/prototype/agent_c_spatial_hash_validator.py`**
+  - Implements spatial-hash collision screening against synthetic friendly ground truth.
+  - Rejects contaminated phantom records inside a 5 km threshold and reports throughput and false-positive behavior.
+- **`src/prototype/red_team_simulation_lab.py`**
+  - Uses `IsolationForest` to evaluate whether high-fidelity synthetic phantom telemetry degrades anomaly separability.
+  - Reports detection rate, false positives, SNR degradation estimate, and precision/recall/F1.
+- **`src/prototype/multimodal_telemetry_generator.py`**
+  - Generates synthetic physical telemetry, RF signatures, and logistics metadata with cross-modal consistency checks.
+  - Reports data completeness and consistency scoring.
 
 ---
 
-## Threat Model Assumptions
+## Validated Claims vs. Future Claims
 
-These are **assumptions** requiring red-team testing:
+### Validated (prototype-level)
 
-### Adversary Capabilities (Assumed)
-1. Multi-sensor fusion integrating SIGINT, IMINT, radar, GPS, and financial data
-2. Statistical anomaly detection trained on logistics patterns
-3. Temporal correlation across sensor modalities
-4. Access to commercial supply chain and open-source intelligence
+- Agent B can generate large synthetic telemetry batches in parallel.
+- Agent C can validate generated phantom coordinates against friendly ground truth using spatial hashing.
+- Kinematic pathing creates more realistic movement behavior than straight-line coordinate noise.
+- A simplified red-team anomaly detector can be used to evaluate phantom realism.
 
-### Why Current Decoys Fail
-- 1-to-1 Decoys: Single phantom filtered if statistically inconsistent
-- Isolated Signatures: Phantom without correlated logistics data flagged as synthetic
-- Temporal Clustering: Phantoms clustered around real convoys easily filtered
+### Not Validated (requires operational testing)
 
-### Logistics Phantom Hypothesis
-
-**If** phantom convoys are statistically consistent, outnumber reals 100:1-1000:1, and include correlated cross-domain signatures, **Then** adversary detection becomes intractable.
-
-**However**: This hypothesis has **not been tested** against real adversary models.
+- Real adversary deception effectiveness
+- Real sensor injection and electromagnetic effects
+- Production deployment with classified systems
+- Phase 6 cross-domain EW coordination
 
 ---
 
-## Proof of Concept (PoC): Agent C Validation
+## Roadmap Update
 
-### What This Proves
-- Synthetic phantom data can be screened against ground truth at operational latency
-- Contaminated records can be rejected at sub-second speeds (<50ms)
+Phase 6 is roadmap-only language in this repository:
 
-### What This Does NOT Prove
-- Phantom fidelity or adversary evasion capability
-- Full system integration or production scalability
-- Operational effectiveness against real detection models
+> **Cross-domain coordination and EW-adjacent modeling are future research concepts and are not implemented in this repository.**
 
-### Key Results
-- **Latency**: <50 milliseconds (validates sub-second requirement)
-- **Rejection Rate**: 0.5% (5 intentional contaminations rejected)
-- **Approval Rate**: 99.5% throughput
-- **No False Positives**: Zero legitimate phantoms rejected
+Any future Phase 6 work requires dedicated legal, operational, and subject-matter expert review before design or implementation scope is expanded.
 
-### How to Run
+---
+
+## Language and Claim Boundaries
+
+This repository intentionally avoids overclaiming. Claims are framed as prototype outcomes, for example:
+
+- "validates one prototype assumption"
+- "demonstrates a simplified simulation pathway"
+- "shows prototype feasibility"
+
+The repository does **not** claim operational readiness, deployment capability, or validated real-world deception outcomes.
+
+---
+
+## How to Run Examples
 
 ```bash
-python3 agent_c_validator.py
+python agent_c_validator.py
+python src/prototype/agent_b_parallel_swarm_generator.py
+python src/prototype/bezier_path_generator.py
+python src/prototype/kinematic_velocity_profiler.py
+python src/prototype/agent_c_spatial_hash_validator.py
+python src/prototype/red_team_simulation_lab.py
+python src/prototype/multimodal_telemetry_generator.py
 ```
 
 ---
 
-## System Architecture: The Multi-Agent Workflow
+## Architecture Context
 
-Logistics Phantom uses **three-tier agentic orchestration** with strict agent isolation.
+Logistics Phantom remains an engineer-ready architecture blueprint and research PRD handoff artifact intended for systems architects, technical PMs, and defense engineering teams.
 
-### Agent A: The Router (Real Payload Handler)
-- **Status**: Architectural design; not yet implemented
-- **Responsibilities**: Ingest logistics data, abstract to seed parameters, maintain ground truth
-- **Security**: Isolated container, outputs only abstracted parameters (no coordinates)
+### Current prototype focus
 
-### Agent B: The Phantom Swarm (Synthetic Telemetry Generator)
-- **Status**: Architectural design; not yet implemented
-- **Architecture**: Hundreds of parallelizable, stateless agents (100x-1000x multiplier)
-- **Generator Logic**: Receives seed parameters → randomizes behavior → outputs synthetic telemetry
+1. **Agent C safety gate** validation for contamination rejection and throughput
+2. **Agent B generation path** prototypes for swarm scale and synthetic route realism
+3. **Red-team simulation harness** for anomaly-detection stress testing
+4. **Multimodal consistency checks** for representative cross-domain synthetic telemetry
 
-### Agent C: The HITL/QA Gate (Ground Truth Validator)
-- **Status**: Implemented and validated
-- **Responsibilities**: Poison prevention, fidelity validation, anomaly detection
-- **Security Mechanisms**: Strict isolation, output segregation, decision gate logic
+### Not in scope for current implementation
 
----
-
-## Recommended Next Experiment: Red-Team Simulation Lab
-
-### Objective
-Validate whether phantom swarms actually degrade adversary detection rates.
-
-### Experimental Design
-- **Blue Team**: Real convoy data + Agent A routing + Agent B phantom generation (100x, 250x, 1000x multipliers)
-- **Red Team**: Detection model trained on historical logistics + multi-sensor fusion + statistical anomaly detection
-
-### Success Metrics
-| Metric | Target |
-|--------|--------|
-| Real Convoy Detection Rate | < 50% |
-| SNR Reduction | < 0.1 (10:1 ratio) |
-| Agent C Latency | < 100ms for 10,000 phantoms |
-| Friendly-Fire Risk | 0% |
-
-### Iteration Plan
-1. **Phase 1 (Months 1-2)**: Static detector vs. 100x multiplier
-2. **Phase 2 (Months 2-3)**: Scale to 250x, 1000x multipliers
-3. **Phase 3 (Months 3-4)**: Adaptive red team with model retraining
-4. **Phase 4 (Months 4-6)**: Multiple real convoys (100+) + operational load
-5. **Phase 5 (Months 6+)**: Integration with logistics simulators (JANUS, OneSAF)
-
----
-
-## Project Limitations & Future Roadmap
-
-### Current Constraints
-
-1. **Computational Overhead**: 1000x multiplier requires ~100 GPU-hours, 50TB/day I/O, 2Gbps bandwidth
-2. **Adversarial Adaptation**: Adversary ML will evolve to exploit phantom signatures
-3. **Friendly-Fire Risk**: Validation gate failures could contaminate friendly systems
-4. **Regulatory Ambiguity**: Legal review required before operational deployment
-5. **Sensor Fusion Authenticity**: Achieving cryptographic realism is non-trivial
-
-### Future Roadmap
-
-**Phase 2**: Adversary-specific personalization based on threat intelligence profiles
-
-**Phase 3**: Hierarchical phantom generation (mother ship + child variants)
-
-**Phase 4**: Closed-loop learning from observable adversary detection attempts
-
-**Phase 5**: Multimodal sensor fusion (radar, acoustic, financial telemetry)
-
-**Phase 6**: Cross-domain coordination (phantom logistics + fake C&C + EW)
-
----
-
-## Deployment Recommendations
-
-### Success Metrics
-1. Adversary SNR < 0.1 (90% noise saturation)
-2. Real convoy survival rate improvement measurable
-3. System overhead < 20% of logistics budget
-4. Validation false negatives < 0.1%
-
-### Governance Structure
-- **Operational Owner**: J-3 (Logistics) / J-2 (Intelligence) joint authority
-- **Technical Review Board**: Monthly assessments of swarm fidelity
-- **HITL Oversight**: Required for parameter changes, anomaly escalation, deactivation
-
----
-
-## Conclusion
-
-Logistics Phantom represents an **architectural approach** to degrading adversarial AI's targeting capability while maintaining friendly-force operational security.
-
-**What This Repository Provides:**
-- Comprehensive architecture for three-tier agent orchestration
-- Validated safety mechanism (Agent C sub-second latency)
-- Clear distinction between design, implementation, and validation
-- Threat model assumptions and experimental roadmap
-
-**What This Repository Does NOT Provide:**
-- Production-ready code for all three agents
-- Deployed system or operational telemetry
-- Red-team validation results
-- Operational effectiveness claims
-
-**Path Forward**: This blueprint suits engineering teams, security architects, red teams, acquisition teams, and policy makers evaluating legal/compliance implications.
-
-The architecture is **sound and tractable**, but operational effectiveness requires rigorous red-team testing and adversarial arms-race preparation.
+- Operational deployment workflows
+- Classified integration pipelines
+- Real mission telemetry ingestion
+- Real EW/jamming/C2 execution logic
 
 ---
 
 ## Document Control
 
-**Version**: 2.0  
-**Classification**: UNCLASSIFIED (Whitepaper & Architecture Blueprint)  
-**Last Updated**: 2026-06-23  
+**Version**: 3.0  
+**Classification**: UNCLASSIFIED SYNTHETIC PROTOTYPE (Research/Portfolio)  
+**Last Updated**: 2026-06-24  
 **Authored By**: Technical Architecture Division  
-**Review Cycle**: Quarterly  
-**Next Review**: 2026-09-23
-
----
-
-*For questions, inquiries, or collaboration opportunities, contact the Defense Tech Architecture team.*
+**Review Cycle**: Quarterly
