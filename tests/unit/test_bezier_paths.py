@@ -92,6 +92,16 @@ class TestPathThroughWaypoints:
         path = generate_bezier_path(wps)
         assert len(path) >= n_wps - 1, f"Path too short for {n_wps} waypoints"
 
+    def test_non_collinear_route_bows_between_waypoints(self):
+        """A route with a turn should not collapse into straight chord samples."""
+        waypoints = [(36.0, -90.0), (36.0, -89.0), (37.0, -89.0)]
+        path = generate_bezier_path(waypoints, samples_per_segment=40)
+
+        first_segment = path[:40]
+        max_lat_deviation = float(np.max(np.abs(first_segment[:, 0] - 36.0)))
+        print(f"\n  First-segment bow deviation: {max_lat_deviation:.4f} degrees")
+        assert max_lat_deviation > 0.01
+
 
 class TestPathSmoothness:
     """Paths must satisfy the smoothness criterion (≥ 90% gentle angles)."""

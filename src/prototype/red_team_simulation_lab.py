@@ -281,7 +281,7 @@ def main() -> int:
             historical_features=historical_features,
             rng=rng_exp,
         )
-        flag = "✅" if result["snr"] < 0.1 else "❌"
+        flag = "PASS" if result["snr"] < 0.1 else "FAIL"
         print(
             f"  {result['multiplier']:<12} "
             f"{result['detection_rate']:.2%}{'':6}"

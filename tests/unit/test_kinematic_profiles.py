@@ -130,9 +130,17 @@ class TestSpeedOnCurves:
         spd_curved = float(np.mean(apply_kinematic_profile(curved)))
         print(f"\n  Straight mean: {spd_straight:.2f} km/h  "
               f"| Curved mean: {spd_curved:.2f} km/h")
-        assert spd_curved <= spd_straight, (
+        assert spd_curved < spd_straight, (
             f"Curved path ({spd_curved:.1f}) faster than straight ({spd_straight:.1f})"
         )
+
+    def test_curved_path_has_speed_variation(self):
+        """Curved routes should not produce a perfectly flat speed profile."""
+        curved = _curved_path()
+        speeds = apply_kinematic_profile(curved)
+        std_spd = float(np.std(speeds))
+        print(f"\n  Curved speed std-dev: {std_spd:.2f} km/h")
+        assert std_spd > 0.5, "Curved path speed profile should vary with curvature"
 
 
 class TestAccelerationConstraints:

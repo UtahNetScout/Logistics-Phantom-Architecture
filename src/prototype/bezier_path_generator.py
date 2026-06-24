@@ -98,15 +98,14 @@ def _angle_between_vectors(v1: np.ndarray, v2: np.ndarray) -> float:
 def generate_bezier_path(
     waypoints: List[Tuple[float, float]],
     samples_per_segment: int = DEFAULT_SAMPLES_PER_SEGMENT,
-    control_scale: float = 0.3,
+    control_scale: float = 0.18,
 ) -> np.ndarray:
     """
     Generate a smooth Bezier path through a list of (lat, lon) waypoints.
 
-    Constructs piecewise cubic Bezier segments between consecutive waypoints.
-    Control points are automatically placed along the chord direction so the
-    curve passes close to—but not necessarily exactly through—each waypoint.
-    The first and last waypoints are always on the curve.
+    Constructs Catmull-Rom-style cubic Bezier segments between consecutive
+    waypoints. Control points are derived from neighbouring waypoint tangents,
+    so the curve passes through every supplied waypoint while smoothing turns.
 
     Args:
         waypoints: Ordered list of (lat, lon) tuples defining the route.
@@ -125,10 +124,12 @@ def generate_bezier_path(
     for i in range(len(pts) - 1):
         p0 = pts[i]
         p3 = pts[i + 1]
-        chord = p3 - p0
-        # Control points offset along the chord direction
-        p1 = p0 + control_scale * chord
-        p2 = p3 - control_scale * chord
+        p_prev = pts[i - 1] if i > 0 else p0
+        p_next = pts[i + 2] if i + 2 < len(pts) else p3
+
+        # Catmull-Rom tangent approximation converted to cubic Bezier controls.
+        p1 = p0 + control_scale * (p3 - p_prev)
+        p2 = p3 - control_scale * (p_next - p0)
         t_vals = np.linspace(0.0, 1.0, samples_per_segment, endpoint=(i == len(pts) - 2))
         segment = _cubic_bezier(p0, p1, p2, p3, t_vals)
         path_segments.append(segment)
@@ -237,7 +238,7 @@ def main() -> int:
         bezier_km = compute_path_length_km(path)
         smoothness = compute_smoothness_score(path)
 
-        print(f"\n  Route {route_idx + 1}: {n_wps} waypoints → {len(path)} path points")
+        print(f"\n  Route {route_idx + 1}: {n_wps} waypoints -> {len(path)} path points")
         print(f"  Straight-line distance : {straight_km:.2f} km")
         print(f"  Bezier path length     : {bezier_km:.2f} km  (ratio: {bezier_km/straight_km:.3f})")
         print(f"  Smoothness score       : {smoothness:.3f}  (target: >0.90)")

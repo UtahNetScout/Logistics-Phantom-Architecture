@@ -297,9 +297,9 @@ def print_summary_report(total_generated: int, results: Dict, processing_time_ms
     rejected = results['rejected_count']
     rejection_rate = (rejected / total_generated) * 100 if total_generated > 0 else 0
 
-    print("\n" + "─" * 80)
+    print("\n" + "-" * 80)
     print("  VALIDATION SUMMARY REPORT")
-    print("─" * 80)
+    print("-" * 80)
     print()
     print(f"  Total Phantom Convoys Generated:        {total_generated:,}")
     print(f"  Phantoms Approved for Broadcast:        {approved:,} ({100-rejection_rate:.2f}%)")
@@ -309,15 +309,15 @@ def print_summary_report(total_generated: int, results: Dict, processing_time_ms
     print()
     print(f"  Total Processing Time:                  {processing_time_ms:.2f} milliseconds")
     if processing_time_ms < 1000:
-        print(f"  Status:                                 ✓ SUB-SECOND LATENCY ACHIEVED")
+        print(f"  Status:                                 PASS - SUB-SECOND LATENCY ACHIEVED")
     print()
-    print("─" * 80)
+    print("-" * 80)
 
     # Detailed collision report
     if results['collision_details']:
         print("\n  COLLISION ANOMALIES DETECTED (Dangerously Close Phantoms):\n")
         print(f"  {'Phantom ID':<15} {'Min Distance (km)':<20} {'Status':<30}")
-        print("  " + "─" * 65)
+        print("  " + "-" * 65)
         for detail in results['collision_details']:
             phantom_id = detail['phantom_id']
             distance = detail['min_distance_km']

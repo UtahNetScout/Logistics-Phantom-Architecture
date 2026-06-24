@@ -227,7 +227,7 @@ def main() -> int:
 
         print(f"\n  Convoy {convoy_idx + 1}: {n_wps} waypoints, {manifest['total_route_km']:.1f} km")
         print(f"  Cargo class   : {manifest['cargo_class']}, {manifest['payload_tonnes']} t")
-        print(f"  Route         : {manifest['origin_id']} → {manifest['destination_id']}")
+        print(f"  Route         : {manifest['origin_id']} -> {manifest['destination_id']}")
         print(f"  Refuels       : {manifest['estimated_refuels']}")
         print(f"  Fuel at start : {phys[0]['fuel_remaining_l']:.0f} L")
         print(f"  Fuel at end   : {phys[-1]['fuel_remaining_l']:.0f} L")
