@@ -47,6 +47,7 @@ BANNER = (
 # ============================================================================
 
 WAYPOINTS_PER_PHANTOM: int = 8          # Waypoints per phantom convoy route
+MIN_PARALLEL_PHANTOMS: int = 2_000      # Avoid process start overhead for small batches
 MIN_SPEED_KMH: float = 35.0             # Minimum logistics vehicle speed (km/h)
 MAX_SPEED_KMH: float = 55.0             # Maximum logistics vehicle speed (km/h)
 REST_INTERVAL_KM_MIN: float = 150.0     # Minimum distance between rest stops (km)
@@ -149,8 +150,8 @@ def generate_phantom_swarm(
     """
     Generate a swarm of synthetic phantom convoy records in parallel.
 
-    Uses Python multiprocessing.Pool to distribute work across CPU cores,
-    achieving near-linear speedup for large phantom counts.
+    Uses a serial path for small batches to avoid process startup overhead,
+    and Python multiprocessing.Pool for larger batches.
 
     Args:
         num_phantoms: Total number of phantom convoys to generate.
@@ -166,8 +167,8 @@ def generate_phantom_swarm(
 
     args = [(i, seed) for i in range(num_phantoms)]
 
-    if n_workers == 1:
-        # Serial fallback (also used in test environments without fork support)
+    if n_workers == 1 or num_phantoms < MIN_PARALLEL_PHANTOMS:
+        # Serial fallback is faster for small batches and avoids spawn overhead.
         return [_generate_single_phantom(a) for a in args]
 
     with Pool(processes=n_workers) as pool:
@@ -200,13 +201,13 @@ def main() -> int:
         print(f"\n  Multiplier : {multiplier}x")
         print(f"  Generated  : {len(phantoms):,} phantom convoys")
         print(f"  Total time : {latency_ms:.1f} ms")
-        print(f"  Per phantom: {per_phantom_us:.1f} µs")
+        print(f"  Per phantom: {per_phantom_us:.1f} us")
         sample = phantoms[0]
         print(f"  Sample ID  : {sample['phantom_id']}")
         print(f"  Waypoints  : {len(sample['waypoints'])}")
         print(f"  Rest stops : {sample['rest_stops']}")
         speeds = sample["speed_profile_kmh"]
-        print(f"  Speed range: {min(speeds):.1f}–{max(speeds):.1f} km/h")
+        print(f"  Speed range: {min(speeds):.1f}-{max(speeds):.1f} km/h")
 
     print("\n" + "=" * 70)
     print("  Prototype complete. All data synthetic.")

@@ -56,7 +56,7 @@ Validates prototype feasibility of realistic phantom route generation. Generates
 Validates that kinematic pathing creates more realistic movement than straight-line coordinate noise. Assigns physically plausible speed profiles to Bezier routes — slowing on curves and accelerating on straights — producing (lat, lon, speed, timestamp) telemetry records. Consumes `bezier_path_generator` output.
 
 ### `agent_c_spatial_hash_validator.py`
-Optimized Agent C implementation demonstrating that phantom-vs-ground-truth collision detection scales sub-linearly with phantom count. Replaces the O(P·R·W²) pairwise Haversine scan with a spatial hash grid, validating 1,000+ phantoms in under 50 ms. Same functional contract as `agent_c_validator.py`.
+Optimized Agent C implementation demonstrating that phantom-vs-ground-truth collision detection scales sub-linearly with phantom count. Replaces the O(P·R·W²) pairwise Haversine scan with an expanded-bounds spatial hash grid, validating prototype-scale phantom batches while guarding against latitude-related cell misses. Same functional contract as `agent_c_validator.py`.
 
 ### `red_team_simulation_lab.py`
 Shows prototype feasibility of using anomaly detection to evaluate phantom realism. Trains an IsolationForest detector on synthetic real-convoy features, then measures how the real-convoy detection rate changes as phantom multiplier increases (10x → 100x → 1000x). Results are simplified simulation metrics — **not operational claims**.
@@ -93,7 +93,7 @@ This section clarifies what has been validated within prototype scope, what is a
 - Agent B parallel swarm generator: generates 100×–1000× phantom batches in parallel
 - Bezier path generator: smooth, realistic curved routing
 - Kinematic velocity profiler: physics-constrained speed profiles
-- Spatial hash validator: optimised Agent C for 10,000+ phantom throughput
+- Spatial hash validator: optimized Agent C for 10,000+ phantom throughput with high-latitude collision regression coverage
 - Red-team simulation lab: IsolationForest adversary degraded to SNR < 0.1 at 100× density
 - Multimodal telemetry generator: cross-modal physical + RF + logistics consistency
 
@@ -117,9 +117,9 @@ This section clarifies what has been validated within prototype scope, what is a
 
 | Claim | Evidence |
 |-------|----------|
-| Agent B can generate large synthetic telemetry batches in parallel | `agent_b_parallel_swarm_generator.py` — 1,000 convoys in <50ms with multiprocessing |
-| Agent C can validate phantom coordinates against ground truth using spatial hashing | `agent_c_spatial_hash_validator.py` — <50ms for 1,000 phantoms |
-| Kinematic pathing creates more realistic movement than straight-line coordinate noise | `kinematic_velocity_profiler.py` — speed varies with curvature (15–80 km/h range) |
+| Agent B can generate large synthetic telemetry batches within prototype latency budgets | `agent_b_parallel_swarm_generator.py` — 1,000 convoys in <5s, with serial fallback for small batches and multiprocessing for larger batches |
+| Agent C can validate phantom coordinates against ground truth using spatial hashing | `agent_c_spatial_hash_validator.py` — 1,000 phantoms <50ms and 10,000 phantoms <100ms in non-instrumented tests |
+| Kinematic pathing creates more realistic movement than straight-line coordinate noise | `kinematic_velocity_profiler.py` — speed varies with curve severity while staying within logistics speed bounds |
 | A simplified red-team anomaly detector can evaluate phantom realism | `red_team_simulation_lab.py` — detection rate decreases with higher phantom multiplier |
 
 ### ❌ Not Yet Validated (require further testing)
@@ -137,9 +137,9 @@ This section clarifies what has been validated within prototype scope, what is a
 
 | Claim | Status | Evidence | Caveat |
 |-------|--------|----------|--------|
-| **Agent C validates 1,000 phantoms with sub-second latency** | ✅ VALIDATED | `agent_c_validator.py` executes in <50ms | Does not validate Agent B's phantom generator realism |
+| **Agent C validates 1,000 phantoms with sub-second latency** | ✅ VALIDATED | `agent_c_validator.py` and spatial hash tests execute under the prototype latency budget | Does not validate Agent B's phantom generator realism |
 | **Agent C rejection rate for contaminated records <1%** | ✅ VALIDATED | Script rejects all 5 intentionally contaminated records | Distance-based only; no temporal correlation analysis |
-| **Agent B generates 1,000 phantoms in <5 seconds** | ✅ VALIDATED | `agent_b_parallel_swarm_generator.py` executes in ~40ms | Synthetic data only; real sensor integration not tested |
+| **Agent B generates 1,000 phantoms in <5 seconds** | ✅ VALIDATED | `agent_b_parallel_swarm_generator.py` executes comfortably below the 5s target in local and CI-style tests | Synthetic data only; real sensor integration not tested |
 | **Bezier paths are smooth (score ≥ 0.90)** | ✅ VALIDATED | `bezier_path_generator.py` scores 1.0 in tests | Simulated path only; real road network not used |
 | **Kinematic profiling realistic (score ≥ 0.80)** | ✅ VALIDATED | `kinematic_velocity_profiler.py` scores 1.0 in tests | Physics model simplified; not terrain-aware |
 | **SNR < 0.1 with 100× phantom multiplier** | ✅ VALIDATED | `red_team_simulation_lab.py` IsolationForest stand-in | Simplified adversary model; real adversary untested |
@@ -375,15 +375,15 @@ The architecture shows prototype feasibility in simplified simulation, but opera
 
 | Component | Target | Observed Result | Status |
 |-----------|--------|-----------------|--------|
-| Agent B Generation (1,000 phantoms) | < 5 s | ~40 ms | ✅ PASS |
-| Agent C Validation (10,000 phantoms) | < 100 ms | ~95 ms | ✅ PASS |
-| Agent C Validation (1,000 phantoms) | < 50 ms | ~10 ms | ✅ PASS |
+| Agent B Generation (1,000 phantoms) | < 5 s | <1 s observed locally | ✅ PASS |
+| Agent C Validation (10,000 phantoms) | < 100 ms | <100 ms non-instrumented test target | ✅ PASS |
+| Agent C Validation (1,000 phantoms) | < 50 ms | <50 ms non-instrumented test target | ✅ PASS |
 | Bezier Path Smoothness | ≥ 0.90 score | 1.00 | ✅ PASS |
 | Kinematic Realism Score | ≥ 0.80 | 1.00 | ✅ PASS |
 | Red-Team SNR at 100× | < 0.1 | ~0.023 | ✅ PASS |
 | Red-Team SNR at 1000× | < 0.1 | ~0.002 | ✅ PASS |
 | False Positive Rate | 0% | 0% | ✅ PASS |
-| End-to-End Pipeline (1,000×) | < 10 s | ~0.05 s | ✅ PASS |
+| End-to-End Pipeline (1,000×) | < 10 s | Prototype pipeline remains below target in non-instrumented tests | ✅ PASS |
 | Parallelisation (determinism) | Serial = Parallel | Identical | ✅ PASS |
 
 > Exact numbers vary by machine. Run `pytest tests/ -v -s` locally to reproduce.
@@ -405,7 +405,7 @@ Six prototype modules in `src/prototype/` validate individual architectural assu
 
 **✅ Validated by this prototype:**
 - Agent B can generate large synthetic telemetry batches in parallel with deterministic seeds.
-- Agent C can validate generated phantom coordinates against friendly ground truth using spatial hashing at sub-50ms latency.
+- Agent C can validate generated phantom coordinates against friendly ground truth using spatial hashing within the documented prototype latency budgets.
 - Kinematic pathing creates more realistic movement behaviour than straight-line coordinate noise.
 - A simplified red-team anomaly detector's SNR is reduced below 0.1 at a 100× phantom multiplier.
 - Bezier paths produce smooth, non-jagged routes with length ≥ straight-line distance.
@@ -448,8 +448,9 @@ pytest tests/integration/ -v -s
 pytest tests/adversary/ -v -s
 pytest tests/performance/ -v -s
 
-# Run with coverage report
-pytest tests/ --cov=src/prototype --cov-report=html
+# Run correctness tests with coverage report
+# Performance tests should be run separately without coverage instrumentation.
+pytest tests/unit tests/integration tests/adversary -m "not performance" --cov=src/prototype --cov-report=html
 # Open htmlcov/index.html to view
 
 # Run prototype scripts directly

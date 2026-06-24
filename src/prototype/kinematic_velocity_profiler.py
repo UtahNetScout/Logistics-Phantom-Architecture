@@ -116,8 +116,9 @@ def apply_kinematic_profile(
     Steps:
       1. Compute curvature at each point.
       2. Derive maximum safe speed from centripetal acceleration limit.
-      3. Clip to [MIN_SPEED_KMH, MAX_SPEED_KMH].
-      4. Apply forward/backward smoothing passes to respect accel/decel limits.
+      3. Apply a practical curve penalty so convoy speed varies on turns.
+      4. Clip to [MIN_SPEED_KMH, MAX_SPEED_KMH].
+      5. Apply forward/backward smoothing passes to respect accel/decel limits.
 
     Args:
         path: Array of shape (N, 2) with (lat, lon) in degrees.
@@ -134,12 +135,17 @@ def apply_kinematic_profile(
 
     # Maximum speed from centripetal limit: v² ≤ a_max / κ  →  v ≤ sqrt(a/κ)
     speed = np.full(n, base_speed_kmh)
+    max_curvature = float(np.max(curvature)) if len(curvature) else 0.0
     for i in range(n):
         kappa = curvature[i]
         if kappa > 1e-6:
             v_max_ms = math.sqrt(MAX_LATERAL_ACCEL_MS2 / kappa)
             v_max_kmh = v_max_ms * 3.6
             speed[i] = min(speed[i], v_max_kmh)
+        if max_curvature > 1e-12:
+            curve_factor = min(1.0, kappa / max_curvature)
+            curve_penalty = curve_factor * (base_speed_kmh - MIN_SPEED_KMH) * 0.65
+            speed[i] = min(speed[i], base_speed_kmh - curve_penalty)
 
     speed = np.clip(speed, MIN_SPEED_KMH, MAX_SPEED_KMH)
 

@@ -1,9 +1,9 @@
 """
-conftest.py — Shared pytest fixtures for Logistics Phantom test suite.
+conftest.py - Shared pytest fixtures for Logistics Phantom test suite.
 
 All data generated here is:
     UNCLASSIFIED SYNTHETIC PROTOTYPE DATA
-    PORTFOLIO PROOF-OF-CONCEPT — NOT OPERATIONAL TELEMETRY
+    PORTFOLIO PROOF-OF-CONCEPT - NOT OPERATIONAL TELEMETRY
 
 Fixtures provide deterministic seeds, sample route data, mock ground-truth
 convoys, and historical logistics pattern arrays so that each test module
@@ -26,7 +26,7 @@ FIXED_SEED: int = 42
 
 
 # ============================================================================
-# GEOGRAPHIC CONSTANTS  (synthetic bounds — not operational coordinates)
+# GEOGRAPHIC CONSTANTS  (synthetic bounds - not operational coordinates)
 # ============================================================================
 
 GEO_LAT_MIN: float = 30.0
@@ -157,7 +157,7 @@ def agent_b_seed_params() -> Dict:
     Return a minimal Agent A seed parameter dict for Agent B.
 
     In the full architecture, Agent A abstracts real convoy data into these
-    parameters — no coordinates. All values here are synthetic.
+    parameters - no coordinates. All values here are synthetic.
     """
     return {
         "region_lat_range": (GEO_LAT_MIN, GEO_LAT_MAX),

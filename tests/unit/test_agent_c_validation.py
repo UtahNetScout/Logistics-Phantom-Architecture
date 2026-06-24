@@ -108,6 +108,23 @@ class TestRejectionOfContaminatedPhantoms:
             f"Expected at least 5 rejections, got {result['rejected_count']}"
         )
 
+    def test_rejects_high_latitude_neighbouring_cell_collision(self):
+        """
+        A near-collision must be rejected even when latitude changes the
+        longitude-to-kilometre scale enough to cross multiple grid cells.
+        """
+        validator = SpatialHashValidator(cell_size_km=5.0, exclusion_km=5.0)
+        real = (64.86378436551982, -138.46004913131168)
+        phantom = (64.88576505766598, -138.3957277942305)
+
+        validator.add_real_waypoints([real])
+        distance_km = validator._haversine_km(*real, *phantom)
+        result = validator.is_phantom_safe([phantom])
+
+        print(f"\n  High-latitude distance: {distance_km:.3f} km, safe={result}")
+        assert distance_km < 5.0
+        assert result is False
+
 
 class TestApprovalOfLegitimatePhantoms:
     """Phantoms outside the exclusion zone must never be rejected (FP rate = 0%)."""
@@ -142,6 +159,7 @@ class TestApprovalOfLegitimatePhantoms:
         )
 
 
+@pytest.mark.performance
 class TestLatency:
     """Validation latency must meet sub-50ms target for 1,000 phantoms."""
 
