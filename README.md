@@ -22,6 +22,8 @@ This document serves as:
 3. **Prototype validation baseline** demonstrating feasibility of core assumptions
 4. **Research artifact** demonstrating systems thinking on AI-enabled deception
 
+For an implementation-oriented handoff, see the dedicated [Engineering Blueprint](docs/ENGINEERING_BLUEPRINT.md). It translates the current prototype into a buildable product plan with product surfaces, data contracts, API boundaries, acceptance criteria, and a phased engineering backlog.
+
 ---
 
 ## Validation Status Matrix
