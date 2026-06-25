@@ -1,0 +1,37 @@
+{
+  "classification": "UNCLASSIFIED SYNTHETIC PROTOTYPE DATA | PORTFOLIO PROOF-OF-CONCEPT | NOT OPERATIONAL TELEMETRY | NOT DEPLOYMENT-READY DECEPTION TOOLING",
+  "scenario_id": "synthetic-contested-logistics-demo",
+  "run_id": "syncon-demo",
+  "events": [
+    {
+      "timestamp_utc": "2026-06-25T05:01:02+00:00",
+      "stage": "pre-mission",
+      "event": "Scenario configured",
+      "detail": "Configured 1 protected synthetic convoy and 250 phantom convoy records."
+    },
+    {
+      "timestamp_utc": "2026-06-25T05:01:02+00:00",
+      "stage": "during-mission",
+      "event": "Synthetic phantom telemetry generated",
+      "detail": "Generated 250 phantom convoy records in 20.3 ms."
+    },
+    {
+      "timestamp_utc": "2026-06-25T05:01:02+00:00",
+      "stage": "during-mission",
+      "event": "Agent C validation completed",
+      "detail": "Approved 247 and rejected 3 synthetic records."
+    },
+    {
+      "timestamp_utc": "2026-06-25T05:01:03+00:00",
+      "stage": "during-mission",
+      "event": "Red-team evaluation completed",
+      "detail": "Simplified detector SNR 0.0000 at 250x."
+    },
+    {
+      "timestamp_utc": "2026-06-25T05:01:03+00:00",
+      "stage": "post-mission",
+      "event": "Evidence report generated",
+      "detail": "Run artifacts and report were written for review."
+    }
+  ]
+}

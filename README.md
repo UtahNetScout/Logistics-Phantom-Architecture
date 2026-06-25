@@ -28,6 +28,10 @@ The ultimate product vision is a full convoy lifecycle platform: pre-mission dec
 
 The Phase 1 product shell is named **SYNCON**: Synthetic Convoy Operations Network.
 
+For a concise product overview, see the [SYNCON Executive Brief](docs/SYNCON_EXECUTIVE_BRIEF.md).
+
+For a lightweight generated evidence package, see the [SYNCON sample demo](examples/syncon-demo/README.md).
+
 ---
 
 ## Validation Status Matrix

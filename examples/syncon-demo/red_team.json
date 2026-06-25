@@ -1,0 +1,13 @@
+{
+  "classification": "UNCLASSIFIED SYNTHETIC PROTOTYPE DATA | PORTFOLIO PROOF-OF-CONCEPT | NOT OPERATIONAL TELEMETRY | NOT DEPLOYMENT-READY DECEPTION TOOLING",
+  "caveat": "Simplified prototype detector; not operational effectiveness.",
+  "multiplier": 250,
+  "n_real": 1,
+  "n_phantom": 250,
+  "detection_rate": 0.0,
+  "snr": 0.0,
+  "precision": 0.0,
+  "recall": 0.0,
+  "f1": 0.0,
+  "elapsed_ms": 11.110999970696867
+}

@@ -1,0 +1,45 @@
+{
+  "scenario_id": "synthetic-contested-logistics-demo",
+  "run_id": "syncon-demo",
+  "seed": 42,
+  "real_convoy_count": 1,
+  "phantom_count": 250,
+  "contaminated_phantoms": 3,
+  "exclusion_km": 5.0,
+  "classification": "UNCLASSIFIED SYNTHETIC PROTOTYPE DATA | PORTFOLIO PROOF-OF-CONCEPT | NOT OPERATIONAL TELEMETRY | NOT DEPLOYMENT-READY DECEPTION TOOLING",
+  "product_name": "SYNCON",
+  "product_expansion": "Synthetic Convoy Operations Network",
+  "architecture_name": "Logistics Phantom",
+  "future_live_mode": "Convoy Shield",
+  "mode": "synthetic-demo",
+  "phantom_multiplier": 250,
+  "started_at_utc": "2026-06-25T05:01:02+00:00",
+  "completed_at_utc": "2026-06-25T05:01:03+00:00",
+  "synthetic_real_convoy_waypoints": [
+    [
+      40.71,
+      -74.005
+    ],
+    [
+      40.72,
+      -74.01
+    ],
+    [
+      40.73,
+      -74.0
+    ],
+    [
+      40.725,
+      -73.99
+    ],
+    [
+      40.715,
+      -73.98
+    ]
+  ],
+  "notes": [
+    "All coordinates and telemetry are synthetic prototype data.",
+    "Contaminated phantoms are intentionally seeded to demonstrate Agent C rejection.",
+    "This run does not represent operational effectiveness or deployment readiness."
+  ]
+}

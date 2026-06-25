@@ -4,6 +4,10 @@
 
 **Scope:** unclassified synthetic prototype data only. This blueprint does not specify operational deployment, real sensor injection, classified data handling, or deployment-ready deception tooling.
 
+**Related artifacts:**
+- [SYNCON Executive Brief](SYNCON_EXECUTIVE_BRIEF.md)
+- [SYNCON sample demo package](../examples/syncon-demo/README.md)
+
 ---
 
 ## 1. Product Intent
