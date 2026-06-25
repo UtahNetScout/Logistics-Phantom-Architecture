@@ -232,6 +232,22 @@ Generated artifacts:
 
 The default demo generates 10,000 synthetic phantom convoy records around 1 protected synthetic convoy in demo mode. It intentionally seeds a small number of unsafe synthetic phantoms so Agent C can prove the validation gate rejects them.
 
+### Open the SYNCON Dashboard
+
+SYNCON also includes a local dashboard for Phase 2 review. It provides mission setup controls, run summary metrics, validation results, red-team metrics, lifecycle timeline, and artifact links.
+
+```bash
+python syncon.py dashboard
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8765
+```
+
+The dashboard is local-only and uses the same synthetic runner as the command-line demo.
+
 ### Run Prototype Modules
 
 The prototype modules are standalone scripts with deterministic seeds for reproducibility.

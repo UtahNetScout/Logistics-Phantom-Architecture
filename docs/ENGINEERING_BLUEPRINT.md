@@ -321,9 +321,10 @@ Done when:
 **Goal:** add the ready-to-use product surface.
 
 Deliverables:
-- FastAPI or Streamlit app.
-- Mission Setup, Pipeline Runner, Validation Dashboard, Red-Team Lab, Evidence Report views.
-- Downloadable JSON and Markdown report.
+- Local dashboard command: `python syncon.py dashboard`.
+- Mission Setup, Pipeline Runner, Validation Dashboard, Red-Team Lab, Mission Timeline, and Evidence Report views.
+- Artifact links for JSON and Markdown reports.
+- Dashboard rendering tests.
 
 Done when:
 - A reviewer can configure and run a scenario without touching code.

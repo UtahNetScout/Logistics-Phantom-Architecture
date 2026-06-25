@@ -337,6 +337,14 @@ def build_parser() -> argparse.ArgumentParser:
         default=1,
         help="Worker count for phantom generation. Default 1 keeps demo runs stable on Windows.",
     )
+    dashboard_parser = subparsers.add_parser(
+        "dashboard",
+        help="Start the local SYNCON dashboard.",
+    )
+    dashboard_parser.add_argument("--host", default="127.0.0.1")
+    dashboard_parser.add_argument("--port", type=int, default=8765)
+    dashboard_parser.add_argument("--output-dir", default="runs")
+    dashboard_parser.add_argument("--run-id", default="demo-run-001")
     return parser
 
 
@@ -357,6 +365,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("SYNCON synthetic demo complete.")
         print(f"Run directory: {result['run_dir']}")
         print("Report: " + str(Path(result["run_dir"]) / "REPORT.md"))
+        return 0
+    if args.command == "dashboard":
+        from src.syncon.dashboard import serve_dashboard
+
+        serve_dashboard(
+            host=args.host,
+            port=args.port,
+            output_dir=Path(args.output_dir),
+            default_run_id=args.run_id,
+        )
         return 0
     parser.error(f"Unsupported command: {args.command}")
     return 2
