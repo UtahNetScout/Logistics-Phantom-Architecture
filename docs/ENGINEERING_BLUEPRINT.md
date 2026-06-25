@@ -10,6 +10,8 @@
 
 Logistics Phantom is a contested-logistics analysis and synthetic telemetry prototype. The product helps a technical team explore how multi-agent workflows could generate, validate, and evaluate synthetic logistics movement patterns while preserving strict separation from protected ground-truth data.
 
+The Phase 1 product shell is named **SYNCON**: Synthetic Convoy Operations Network. Logistics Phantom remains the architecture concept; SYNCON is the runnable product surface built on top of it.
+
 The engineer-ready product should demonstrate three things:
 
 1. A clear multi-agent architecture with explicit data boundaries.
@@ -305,9 +307,9 @@ The product API should be designed around scenario runs.
 **Goal:** turn the prototype into a runnable product shell.
 
 Deliverables:
-- `backend/` package with typed scenario/run models.
-- CLI command: `logistics-phantom run --scenario demo`.
-- Generated report file for each run.
+- `src/syncon/` package with scenario/run orchestration.
+- CLI command: `python syncon.py run --scenario demo`.
+- Generated JSON artifacts and `REPORT.md` for each run.
 - README quickstart updated for product flow.
 
 Done when:
@@ -333,7 +335,7 @@ Done when:
 
 Deliverables:
 - Pydantic models or JSON schemas.
-- Package structure with `src/logistics_phantom/`.
+- Hardened package structure under `src/syncon/`.
 - Unit and integration tests for API and report generation.
 - CI gates for lint, tests, coverage, and benchmark smoke tests.
 

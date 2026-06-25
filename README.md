@@ -26,6 +26,8 @@ For an implementation-oriented handoff, see the dedicated [Engineering Blueprint
 
 The ultimate product vision is a full convoy lifecycle platform: pre-mission deception planning, future authorized live convoy support, and post-mission reporting that documents the process from beginning to end.
 
+The Phase 1 product shell is named **SYNCON**: Synthetic Convoy Operations Network.
+
 ---
 
 ## Validation Status Matrix
@@ -212,7 +214,27 @@ These are **assumptions** requiring red-team testing before any operational clai
 
 ## How to Run
 
-All prototype modules are standalone scripts with deterministic seeds for reproducibility.
+### Run the SYNCON Product Demo
+
+SYNCON runs the Phase 1 product flow and writes a complete synthetic evidence package under `runs/{run_id}/`.
+
+```bash
+python syncon.py run --scenario demo
+```
+
+Generated artifacts:
+- `scenario.json`
+- `phantoms.json`
+- `validation.json`
+- `red_team.json`
+- `timeline.json`
+- `REPORT.md`
+
+The default demo generates 10,000 synthetic phantom convoy records around 1 protected synthetic convoy in demo mode. It intentionally seeds a small number of unsafe synthetic phantoms so Agent C can prove the validation gate rejects them.
+
+### Run Prototype Modules
+
+The prototype modules are standalone scripts with deterministic seeds for reproducibility.
 
 ```bash
 # Run the original Agent C validator (baseline)

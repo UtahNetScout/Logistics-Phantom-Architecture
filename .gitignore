@@ -17,3 +17,6 @@ build/
 
 *.log
 *.tmp
+
+runs/
+tmp-pytest*/
