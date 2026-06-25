@@ -184,6 +184,8 @@ def render_dashboard(
     default_contaminated = scenario.get("contaminated_phantoms", 5)
     default_seed = scenario.get("seed", 42)
     artifact_links = _artifact_links(run_id)
+    scenario_label = html.escape(str(scenario.get("scenario_id", "synthetic-contested-logistics-demo")))
+    run_label = html.escape(run_id)
 
     return f"""<!doctype html>
 <html lang="en">
@@ -193,41 +195,90 @@ def render_dashboard(
   <title>SYNCON Dashboard</title>
   <style>
     :root {{
-      color-scheme: light;
-      --bg: #f6f8fb;
-      --panel: #ffffff;
-      --ink: #18222f;
-      --muted: #5f6d7a;
-      --line: #d8e0ea;
-      --accent: #126c7a;
-      --accent-strong: #0f4f5c;
-      --ok: #14743b;
-      --warn: #9b4d00;
-      --danger: #a02626;
+      color-scheme: dark;
+      --bg: #071017;
+      --bg-2: #0d1822;
+      --panel: #111d28;
+      --panel-2: #142331;
+      --ink: #eef6fb;
+      --muted: #8fa2b2;
+      --line: #263746;
+      --line-strong: #335064;
+      --accent: #32d3c7;
+      --accent-strong: #7df5e8;
+      --blue: #6ca8ff;
+      --ok: #47d16c;
+      --warn: #e2b84d;
+      --danger: #ff6b6b;
+      --shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
     }}
     * {{ box-sizing: border-box; }}
     body {{
       margin: 0;
       font-family: Arial, Helvetica, sans-serif;
-      background: var(--bg);
+      background:
+        linear-gradient(180deg, rgba(13, 28, 39, 0.95), rgba(7, 16, 23, 1) 360px),
+        var(--bg);
       color: var(--ink);
       line-height: 1.45;
     }}
     header {{
-      background: #17202c;
+      background:
+        linear-gradient(90deg, rgba(50, 211, 199, 0.13), rgba(108, 168, 255, 0.05)),
+        #0a141d;
       color: #fff;
-      padding: 22px 28px;
-      border-bottom: 4px solid var(--accent);
+      padding: 26px 28px;
+      border-bottom: 1px solid var(--line-strong);
+    }}
+    .topbar {{
+      max-width: 1180px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+    }}
+    .brand {{
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }}
+    .mark {{
+      width: 42px;
+      height: 42px;
+      border: 1px solid rgba(50, 211, 199, 0.7);
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: var(--accent-strong);
+      font-weight: 800;
+      background: rgba(50, 211, 199, 0.08);
+      box-shadow: 0 0 28px rgba(50, 211, 199, 0.13);
     }}
     header h1 {{
       margin: 0;
-      font-size: 28px;
+      font-size: 30px;
       letter-spacing: 0;
     }}
     header p {{
       margin: 6px 0 0;
-      color: #dbe5ee;
+      color: #b8c8d6;
       max-width: 1100px;
+    }}
+    .status-strip {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+    }}
+    .chip {{
+      border: 1px solid rgba(50, 211, 199, 0.35);
+      background: rgba(17, 29, 40, 0.8);
+      color: #d6fbf6;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      white-space: nowrap;
     }}
     main {{
       max-width: 1180px;
@@ -241,11 +292,12 @@ def render_dashboard(
       font-size: 18px;
       margin: 0 0 12px;
       letter-spacing: 0;
+      color: #f4fbff;
     }}
     .notice {{
-      background: #fff8e6;
-      border: 1px solid #e7cf8a;
-      color: #5d4600;
+      background: rgba(226, 184, 77, 0.12);
+      border: 1px solid rgba(226, 184, 77, 0.45);
+      color: #ffe3a3;
       padding: 10px 12px;
       border-radius: 6px;
       margin-bottom: 18px;
@@ -260,6 +312,7 @@ def render_dashboard(
       border: 1px solid var(--line);
       border-radius: 6px;
       padding: 14px;
+      box-shadow: var(--shadow);
     }}
     .metric .label {{
       color: var(--muted);
@@ -270,6 +323,46 @@ def render_dashboard(
       font-size: 24px;
       font-weight: 700;
       margin-top: 4px;
+      overflow-wrap: anywhere;
+      color: #ffffff;
+    }}
+    .metric.primary {{
+      border-color: rgba(50, 211, 199, 0.5);
+      background: linear-gradient(180deg, rgba(50, 211, 199, 0.10), rgba(17, 29, 40, 1));
+    }}
+    .metric.primary .value {{
+      color: var(--accent-strong);
+    }}
+    .mission-brief {{
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 14px;
+      align-items: stretch;
+    }}
+    .brief-copy {{
+      color: #c5d5df;
+      margin: 0;
+    }}
+    .brief-list {{
+      margin: 12px 0 0;
+      padding-left: 18px;
+      color: #d8e6ef;
+    }}
+    .brief-aside {{
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 14px;
+    }}
+    .brief-aside div {{
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }}
+    .brief-aside strong {{
+      display: block;
+      color: #fff;
       overflow-wrap: anywhere;
     }}
     form {{
@@ -283,17 +376,24 @@ def render_dashboard(
       color: var(--muted);
       font-size: 12px;
       margin-bottom: 4px;
+      text-transform: uppercase;
     }}
     input {{
       width: 100%;
       padding: 9px 10px;
-      border: 1px solid var(--line);
+      border: 1px solid var(--line-strong);
       border-radius: 5px;
       font-size: 14px;
+      background: #09131c;
+      color: var(--ink);
+    }}
+    input:focus {{
+      outline: 2px solid rgba(50, 211, 199, 0.35);
+      border-color: var(--accent);
     }}
     button {{
       background: var(--accent);
-      color: white;
+      color: #071017;
       border: 0;
       border-radius: 5px;
       padding: 10px 14px;
@@ -315,18 +415,54 @@ def render_dashboard(
       padding: 10px;
       border-bottom: 1px solid var(--line);
       vertical-align: top;
+      color: #dce8ef;
     }}
     th {{
       color: var(--muted);
       font-size: 12px;
       text-transform: uppercase;
-      background: #eef3f7;
+      background: #0c1822;
+    }}
+    tr:hover td {{
+      background: rgba(50, 211, 199, 0.04);
+    }}
+    .timeline {{
+      display: grid;
+      gap: 10px;
+    }}
+    .timeline-item {{
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 12px 14px;
+      display: grid;
+      grid-template-columns: 150px 1fr;
+      gap: 12px;
+    }}
+    .stage {{
+      color: var(--accent-strong);
+      font-size: 12px;
+      text-transform: uppercase;
+      font-weight: 700;
+    }}
+    .timeline-title {{
+      color: #fff;
+      font-weight: 700;
+      margin-bottom: 3px;
+    }}
+    .timeline-detail {{
+      color: #b9c9d5;
     }}
     .links a {{
       display: inline-block;
       margin: 0 8px 8px 0;
       color: var(--accent-strong);
       font-weight: 700;
+      border: 1px solid rgba(50, 211, 199, 0.35);
+      border-radius: 5px;
+      padding: 8px 10px;
+      text-decoration: none;
+      background: rgba(50, 211, 199, 0.07);
     }}
     footer {{
       color: var(--muted);
@@ -335,20 +471,55 @@ def render_dashboard(
     }}
     @media (max-width: 900px) {{
       .grid, form {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+      .mission-brief {{ grid-template-columns: 1fr; }}
+      .topbar {{ align-items: flex-start; flex-direction: column; }}
+      .status-strip {{ justify-content: flex-start; }}
     }}
     @media (max-width: 560px) {{
       main {{ padding: 16px; }}
       .grid, form {{ grid-template-columns: 1fr; }}
+      .timeline-item {{ grid-template-columns: 1fr; }}
     }}
   </style>
 </head>
 <body>
   <header>
-    <h1>SYNCON</h1>
-    <p>Synthetic Convoy Operations Network. Local demo dashboard for the Logistics Phantom architecture.</p>
+    <div class="topbar">
+      <div class="brand">
+        <div class="mark">SC</div>
+        <div>
+          <h1>SYNCON</h1>
+          <p>Synthetic Convoy Operations Network. Local demo dashboard for the Logistics Phantom architecture.</p>
+        </div>
+      </div>
+      <div class="status-strip">
+        <span class="chip">Synthetic Demo</span>
+        <span class="chip">Local Only</span>
+        <span class="chip">Not Deployment Ready</span>
+      </div>
+    </div>
   </header>
   <main>
     {_message_html(message)}
+    <section class="panel">
+      <h2>Mission Command Brief</h2>
+      <div class="mission-brief">
+        <div>
+          <p class="brief-copy">SYNCON runs a controlled synthetic convoy lifecycle: configure the scenario, generate phantom telemetry, validate every record through Agent C, evaluate the red-team detector, and export evidence artifacts.</p>
+          <ul class="brief-list">
+            <li>Pre-mission setup stays synthetic and reproducible.</li>
+            <li>During-mission simulation records generated volume and validation decisions.</li>
+            <li>Post-mission output produces reviewable evidence files.</li>
+          </ul>
+        </div>
+        <div class="brief-aside">
+          <div>Active Run</div>
+          <strong>{run_label}</strong>
+          <div style="margin-top: 12px;">Scenario</div>
+          <strong>{scenario_label}</strong>
+        </div>
+      </div>
+    </section>
     <section class="panel">
       <h2>Mission Setup</h2>
       <form method="post" action="/run">
@@ -374,8 +545,8 @@ def render_dashboard(
     <section>
       <h2>Run Summary</h2>
       <div class="grid">
-        {_metric("Protected Convoys", scenario.get("real_convoy_count", "-"))}
-        {_metric("Phantom Records", _fmt_int(scenario.get("phantom_count")))}
+        {_metric("Protected Convoys", scenario.get("real_convoy_count", "-"), primary=True)}
+        {_metric("Phantom Records", _fmt_int(scenario.get("phantom_count")), primary=True)}
         {_metric("Rejected Records", _fmt_int(validation.get("rejected_count")))}
         {_metric("Red-Team SNR", _fmt_float(red_team.get("snr"), 4))}
       </div>
@@ -394,7 +565,7 @@ def render_dashboard(
     </section>
     <section>
       <h2>Mission Timeline</h2>
-      {_timeline_table(events)}
+      {_timeline_cards(events)}
     </section>
     <section class="panel">
       <h2>Evidence Artifacts</h2>
@@ -421,33 +592,33 @@ def _message_html(message: str) -> str:
     return f'<div class="notice">{html.escape(message)}</div>'
 
 
-def _metric(label: str, value: object) -> str:
+def _metric(label: str, value: object, primary: bool = False) -> str:
+    class_name = "metric primary" if primary else "metric"
     return (
-        '<div class="metric">'
+        f'<div class="{class_name}">'
         f'<div class="label">{html.escape(label)}</div>'
         f'<div class="value">{html.escape(str(value))}</div>'
         "</div>"
     )
 
 
-def _timeline_table(events: Iterable[Dict[str, Any]]) -> str:
-    rows = [
-        "<table>",
-        "<tr><th>Stage</th><th>Event</th><th>Detail</th></tr>",
-    ]
+def _timeline_cards(events: Iterable[Dict[str, Any]]) -> str:
+    rows = ['<div class="timeline">']
     has_events = False
     for event in events:
         has_events = True
         rows.append(
-            "<tr>"
-            f"<td>{html.escape(str(event.get('stage', '-')))}</td>"
-            f"<td>{html.escape(str(event.get('event', '-')))}</td>"
-            f"<td>{html.escape(str(event.get('detail', '-')))}</td>"
-            "</tr>"
+            '<div class="timeline-item">'
+            f'<div class="stage">{html.escape(str(event.get("stage", "-")))}</div>'
+            "<div>"
+            f'<div class="timeline-title">{html.escape(str(event.get("event", "-")))}</div>'
+            f'<div class="timeline-detail">{html.escape(str(event.get("detail", "-")))}</div>'
+            "</div>"
+            "</div>"
         )
     if not has_events:
-        rows.append('<tr><td colspan="3">No run artifacts found yet.</td></tr>')
-    rows.append("</table>")
+        rows.append('<div class="timeline-item"><div class="stage">Standby</div><div><div class="timeline-title">No run artifacts found yet.</div><div class="timeline-detail">Run the demo to populate the mission timeline.</div></div></div>')
+    rows.append("</div>")
     return "\n".join(rows)
 
 

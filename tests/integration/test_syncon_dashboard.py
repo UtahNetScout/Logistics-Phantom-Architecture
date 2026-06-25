@@ -28,10 +28,12 @@ def test_dashboard_renders_metrics_and_artifact_links(tmp_path):
     )
 
     assert "SYNCON" in html
+    assert "Mission Command Brief" in html
     assert "Mission Setup" in html
     assert "Run Summary" in html
     assert "Validation And Red-Team Metrics" in html
     assert "Mission Timeline" in html
+    assert "Synthetic Demo" in html
     assert "REPORT.md" in html
     assert "dashboard-run" in html
     assert "Run complete" in html
