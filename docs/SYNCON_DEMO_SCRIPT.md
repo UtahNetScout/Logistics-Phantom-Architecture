@@ -45,6 +45,7 @@ Call out the important surfaces:
 - Phantom record count.
 - Agent C validation metrics.
 - Red-team SNR metrics.
+- Run registry comparison across completed demo missions.
 - Mission lifecycle timeline.
 - Generated artifact links.
 

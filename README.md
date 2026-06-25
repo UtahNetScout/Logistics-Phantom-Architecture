@@ -67,7 +67,7 @@ The current prototype demonstrates the product workflow, validation gate, eviden
 
 | Surface | Purpose |
 |---------|---------|
-| `python syncon.py dashboard` | Local browser dashboard for mission setup, metrics, lifecycle timeline, and artifact links |
+| `python syncon.py dashboard` | Local browser dashboard for mission setup, metrics, run registry comparison, lifecycle timeline, and artifact links |
 | `python syncon.py run --scenario demo` | CLI runner that generates a complete synthetic evidence package |
 | `docs/ENGINEERING_BLUEPRINT.md` | Engineer-ready build plan with architecture, data contracts, APIs, and acceptance criteria |
 | `docs/SYNCON_EXECUTIVE_BRIEF.md` | Concise product brief for technical and non-technical reviewers |
@@ -143,6 +143,7 @@ Validated within prototype scope:
 - Rejection of intentionally seeded unsafe phantom records.
 - Simplified red-team SNR and detection metrics.
 - Local dashboard and generated evidence reports.
+- Run registry and side-by-side mission comparison inside the dashboard.
 
 Not validated:
 

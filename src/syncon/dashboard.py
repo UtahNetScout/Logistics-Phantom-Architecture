@@ -63,10 +63,12 @@ def make_handler(output_dir: Path, default_run_id: str) -> type[BaseHTTPRequestH
                 run_id = _safe_run_id(query.get("run_id", [default_run_id])[0])
                 message = query.get("message", [""])[0]
                 artifacts = load_run_artifacts(output_dir / run_id)
+                run_summaries = load_run_registry(output_dir)
                 body = render_dashboard(
                     output_dir=output_dir,
                     run_id=run_id,
                     artifacts=artifacts,
+                    run_summaries=run_summaries,
                     message=message,
                 )
                 self._send_html(body)
@@ -108,6 +110,7 @@ def make_handler(output_dir: Path, default_run_id: str) -> type[BaseHTTPRequestH
                     output_dir=output_dir,
                     run_id=default_run_id,
                     artifacts=artifacts,
+                    run_summaries=load_run_registry(output_dir),
                     message=f"Input error: {exc}",
                 )
                 self._send_html(body, status=HTTPStatus.BAD_REQUEST)
@@ -167,10 +170,52 @@ def load_run_artifacts(run_dir: Path) -> Dict[str, Any]:
     return artifacts
 
 
+def load_run_registry(output_dir: Path) -> list[Dict[str, Any]]:
+    """Load compact summaries for all generated SYNCON runs."""
+    summaries: list[Dict[str, Any]] = []
+    if not output_dir.exists():
+        return summaries
+
+    for run_dir in sorted(output_dir.iterdir(), key=lambda p: p.name):
+        if not run_dir.is_dir():
+            continue
+        artifacts = load_run_artifacts(run_dir)
+        scenario = artifacts.get("scenario")
+        if not isinstance(scenario, dict):
+            continue
+        validation = artifacts.get("validation", {})
+        red_team = artifacts.get("red_team", {})
+        timeline = artifacts.get("timeline", {})
+        summaries.append(
+            {
+                "run_id": scenario.get("run_id", run_dir.name),
+                "scenario_id": scenario.get("scenario_id", "-"),
+                "phantom_count": scenario.get("phantom_count"),
+                "contaminated_phantoms": scenario.get("contaminated_phantoms"),
+                "approved_count": validation.get("approved_count"),
+                "rejected_count": validation.get("rejected_count"),
+                "snr": red_team.get("snr"),
+                "detection_rate": red_team.get("detection_rate"),
+                "completed_at_utc": scenario.get("completed_at_utc", "-"),
+                "event_count": len(timeline.get("events", [])) if isinstance(timeline, dict) else 0,
+            }
+        )
+
+    return sorted(
+        summaries,
+        key=lambda item: (
+            str(item.get("completed_at_utc", "")),
+            str(item.get("run_id", "")),
+        ),
+        reverse=True,
+    )
+
+
 def render_dashboard(
     output_dir: Path,
     run_id: str,
     artifacts: Dict[str, Any],
+    run_summaries: list[Dict[str, Any]] | None = None,
     message: str = "",
 ) -> str:
     """Render the SYNCON dashboard page."""
@@ -186,6 +231,7 @@ def render_dashboard(
     artifact_links = _artifact_links(run_id)
     scenario_label = html.escape(str(scenario.get("scenario_id", "synthetic-contested-logistics-demo")))
     run_label = html.escape(run_id)
+    registry = run_summaries if run_summaries is not None else load_run_registry(output_dir)
 
     return f"""<!doctype html>
 <html lang="en">
@@ -426,6 +472,25 @@ def render_dashboard(
     tr:hover td {{
       background: rgba(50, 211, 199, 0.04);
     }}
+    .run-link {{
+      color: var(--accent-strong);
+      font-weight: 700;
+      text-decoration: none;
+    }}
+    .run-link:hover {{ text-decoration: underline; }}
+    .selected-run td {{
+      background: rgba(50, 211, 199, 0.08);
+    }}
+    .status-badge {{
+      display: inline-block;
+      border: 1px solid rgba(71, 209, 108, 0.4);
+      color: #b9f5c8;
+      background: rgba(71, 209, 108, 0.08);
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 12px;
+      white-space: nowrap;
+    }}
     .timeline {{
       display: grid;
       gap: 10px;
@@ -543,6 +608,10 @@ def render_dashboard(
       </form>
     </section>
     <section>
+      <h2>Run Registry And Comparison</h2>
+      {_run_registry_table(registry, run_id)}
+    </section>
+    <section>
       <h2>Run Summary</h2>
       <div class="grid">
         {_metric("Protected Convoys", scenario.get("real_convoy_count", "-"), primary=True)}
@@ -584,6 +653,38 @@ def _artifact_links(run_id: str) -> str:
         href = f"/artifact/{quote(run_id)}/{quote(name)}"
         links.append(f'<a href="{href}" target="_blank">{html.escape(name)}</a>')
     return "\n".join(links)
+
+
+def _run_registry_table(summaries: list[Dict[str, Any]], selected_run: str) -> str:
+    if not summaries:
+        return (
+            '<div class="panel">'
+            "<p class=\"brief-copy\">No completed runs found yet. Run a mission to populate the registry.</p>"
+            "</div>"
+        )
+
+    rows = [
+        "<table>",
+        "<tr><th>Run</th><th>Phantoms</th><th>Rejected</th><th>SNR</th><th>Detection</th><th>Events</th><th>Completed</th><th>Status</th></tr>",
+    ]
+    for summary in summaries:
+        run_id = str(summary.get("run_id", "-"))
+        row_class = ' class="selected-run"' if run_id == selected_run else ""
+        href = f"/?run_id={quote(run_id)}"
+        rows.append(
+            f"<tr{row_class}>"
+            f'<td><a class="run-link" href="{href}">{html.escape(run_id)}</a></td>'
+            f"<td>{_fmt_int(summary.get('phantom_count'))}</td>"
+            f"<td>{_fmt_int(summary.get('rejected_count'))}</td>"
+            f"<td>{_fmt_float(summary.get('snr'), 4)}</td>"
+            f"<td>{_fmt_percent(summary.get('detection_rate'))}</td>"
+            f"<td>{_fmt_int(summary.get('event_count'))}</td>"
+            f"<td>{html.escape(str(summary.get('completed_at_utc', '-')))}</td>"
+            '<td><span class="status-badge">Evidence Ready</span></td>'
+            "</tr>"
+        )
+    rows.append("</table>")
+    return "\n".join(rows)
 
 
 def _message_html(message: str) -> str:
