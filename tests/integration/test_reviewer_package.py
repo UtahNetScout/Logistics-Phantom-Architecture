@@ -14,6 +14,7 @@ def test_reviewer_documents_are_linked_from_readme():
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
 
     expected_links = [
+        "docs/ENGINEER_HANDOFF_PACKAGE.md",
         "docs/ENGINEERING_BLUEPRINT.md",
         "docs/SYNCON_EXECUTIVE_BRIEF.md",
         "docs/REVIEWER_EVALUATION_GUIDE.md",
@@ -29,6 +30,7 @@ def test_reviewer_documents_are_linked_from_readme():
 def test_reviewer_docs_keep_scope_boundaries_visible():
     docs = [
         ROOT / "README.md",
+        ROOT / "docs" / "ENGINEER_HANDOFF_PACKAGE.md",
         ROOT / "docs" / "SYNCON_EXECUTIVE_BRIEF.md",
         ROOT / "docs" / "REVIEWER_EVALUATION_GUIDE.md",
         ROOT / "docs" / "SYNCON_DEMO_SCRIPT.md",
@@ -46,3 +48,32 @@ def test_readme_has_no_common_encoding_artifacts():
     mojibake_markers = ["â", "ð", "Ã", "Â"]
     for marker in mojibake_markers:
         assert marker not in readme
+
+
+def test_engineer_handoff_package_contains_build_ready_sections():
+    text = (ROOT / "docs" / "ENGINEER_HANDOFF_PACKAGE.md").read_text(encoding="utf-8")
+
+    required_sections = [
+        "Module Responsibilities",
+        "Interface Contracts To Stabilize",
+        "Dashboard/API Boundary",
+        "Acceptance Criteria For The Next Engineer",
+        "Deployment Assumptions",
+        "Security And Safety Boundaries",
+        "Suggested First Engineering Sprint",
+        "Engineer Handoff Checklist",
+    ]
+    required_terms = [
+        "RunService",
+        "ArtifactStore",
+        "ExportService",
+        "DecisionService",
+        "OperatorDecision",
+        "Convoy Shield",
+        "not operational",
+    ]
+
+    for section in required_sections:
+        assert section in text
+    for term in required_terms:
+        assert term in text

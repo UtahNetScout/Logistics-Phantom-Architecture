@@ -5,6 +5,7 @@
 **Scope:** unclassified synthetic prototype data only. This blueprint does not specify operational deployment, real sensor injection, classified data handling, or deployment-ready deception tooling.
 
 **Related artifacts:**
+- [Engineer Handoff Package](ENGINEER_HANDOFF_PACKAGE.md)
 - [SYNCON Executive Brief](SYNCON_EXECUTIVE_BRIEF.md)
 - [SYNCON sample demo package](../examples/syncon-demo/README.md)
 
@@ -464,11 +465,12 @@ The final product demo should support this story:
 
 This repository is engineer-ready when a new engineer can:
 
-1. Read this blueprint and understand the product boundaries.
-2. Run the test suite.
-3. Execute one end-to-end synthetic scenario.
-4. Inspect generated artifacts.
-5. Add a new generator, validator, or detector strategy without rewriting the pipeline.
-6. Explain what is validated, what is simulated, and what is future work.
+1. Read the [Engineer Handoff Package](ENGINEER_HANDOFF_PACKAGE.md) and understand the implementation path.
+2. Read this blueprint and understand the product boundaries.
+3. Run the test suite.
+4. Execute one end-to-end synthetic scenario.
+5. Inspect generated artifacts.
+6. Add a new generator, validator, or detector strategy without rewriting the pipeline.
+7. Explain what is validated, what is simulated, and what is future work.
 
 Until those conditions are met, the repository should be described as a strong prototype and architecture artifact, not a complete product.

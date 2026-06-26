@@ -118,7 +118,7 @@ Expected result:
 | Area | Reviewer Question | Expected Signal |
 |------|-------------------|-----------------|
 | Product clarity | Can I explain SYNCON in one minute? | Executive brief and README make the concept clear |
-| Engineering readiness | Could an engineer pick up the build plan? | Engineering blueprint defines surfaces, contracts, and acceptance criteria |
+| Engineering readiness | Could an engineer pick up the build plan? | Engineer handoff package and blueprint define responsibilities, contracts, service boundaries, and acceptance criteria |
 | Demo usability | Can I run or inspect the product quickly? | Dashboard and sample evidence package are easy to evaluate |
 | Product console depth | Can I compare multiple generated missions? | Dashboard registry lists completed runs with key metrics |
 | Insight layer | Does the dashboard explain run differences? | Comparison Insights summarize volume, validation, SNR, detection rate, and profile coverage |
@@ -175,8 +175,8 @@ The current repository is valuable because it is disciplined about those boundar
 
 The next engineering phase should convert the local runner into a service-oriented product skeleton:
 
-1. Define a stable scenario schema.
-2. Add a run registry and run comparison view.
-3. Split dashboard actions from execution logic behind an internal API boundary.
-4. Add exportable reviewer reports.
+1. Start from the [Engineer Handoff Package](ENGINEER_HANDOFF_PACKAGE.md).
+2. Define stable typed models for scenario, validation, red-team, timeline, decision, and export contracts.
+3. Split dashboard actions from execution logic behind an internal service/API boundary.
+4. Add schema tests for persisted JSON artifacts.
 5. Add richer synthetic telemetry schemas without crossing into operational claims.

@@ -18,9 +18,10 @@ This repository does not contain classified data, real convoy telemetry, real ro
 If you are reviewing this project cold, use this path:
 
 1. Read the [SYNCON Executive Brief](docs/SYNCON_EXECUTIVE_BRIEF.md).
-2. Open the [Reviewer Evaluation Guide](docs/REVIEWER_EVALUATION_GUIDE.md).
-3. Inspect the committed [sample demo evidence package](examples/syncon-demo/README.md).
-4. Run the local dashboard:
+2. Open the [Engineer Handoff Package](docs/ENGINEER_HANDOFF_PACKAGE.md).
+3. Open the [Reviewer Evaluation Guide](docs/REVIEWER_EVALUATION_GUIDE.md).
+4. Inspect the committed [sample demo evidence package](examples/syncon-demo/README.md).
+5. Run the local dashboard:
 
 ```bash
 python syncon.py dashboard
@@ -32,7 +33,7 @@ Then open:
 http://127.0.0.1:8765
 ```
 
-5. Run a fresh synthetic mission package:
+6. Run a fresh synthetic mission package:
 
 ```bash
 python syncon.py run --scenario demo
@@ -42,7 +43,7 @@ Generated artifacts are written to `runs/{run_id}/`.
 
 Available synthetic scenario templates include `demo`, `baseline`, `dense-phantom`, `validation-stress`, and `high-threat-synthetic`.
 
-6. Export a reviewer-ready executive package:
+7. Export a reviewer-ready executive package:
 
 ```bash
 python syncon.py export --run-id demo-run-001
@@ -83,6 +84,7 @@ The current prototype demonstrates the product workflow, validation gate, eviden
 | `python syncon.py run --scenario demo` | CLI runner that generates a complete synthetic evidence package from a selected scenario template |
 | `python syncon.py export --run-id demo-run-001` | Executive export command that creates a reviewer-ready leave-behind package |
 | Dashboard `Export Brief` button | UI action that generates and opens the executive export package for the selected run |
+| `docs/ENGINEER_HANDOFF_PACKAGE.md` | First-read engineering handoff packet with module responsibilities, service boundaries, acceptance criteria, and safety rules |
 | `docs/ENGINEERING_BLUEPRINT.md` | Engineer-ready build plan with architecture, data contracts, APIs, and acceptance criteria |
 | `docs/SYNCON_EXECUTIVE_BRIEF.md` | Concise product brief for technical and non-technical reviewers |
 | `docs/REVIEWER_EVALUATION_GUIDE.md` | Step-by-step review path, acceptance checklist, and demo framing |
@@ -186,6 +188,7 @@ Not validated:
 |-- src/syncon/                       # Product runner and local dashboard
 |-- src/prototype/                    # Prototype modules for architecture validation
 |-- tests/                            # Unit, integration, adversary, and performance tests
+|-- docs/ENGINEER_HANDOFF_PACKAGE.md  # Engineer handoff packet
 |-- docs/ENGINEERING_BLUEPRINT.md     # Engineer-ready implementation blueprint
 |-- docs/SYNCON_EXECUTIVE_BRIEF.md    # Product overview
 |-- docs/REVIEWER_EVALUATION_GUIDE.md # Reviewer walkthrough and acceptance checklist
