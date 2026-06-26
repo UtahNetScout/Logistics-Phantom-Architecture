@@ -73,6 +73,10 @@ Then point to:
 exports/demo-run-001/SYNCON_EXECUTIVE_REPORT.md
 ```
 
+Or use the dashboard:
+
+> Select the completed run, click **Export Brief**, then open `SYNCON_EXECUTIVE_REPORT.md` from the Executive Export panel.
+
 Close with the boundary:
 
 > This does not claim real-world deception or live convoy protection. It demonstrates how I think as an AI systems architect: define the product surface, separate agent responsibilities, enforce validation gates, generate evidence, and keep the claims honest.
@@ -84,6 +88,7 @@ Close with the boundary:
 - This is a product demo, not only a whitepaper.
 - The repo includes tests, a dashboard, generated artifacts, a sample evidence package, and an engineering blueprint.
 - The export command generates a polished executive leave-behind from a completed run.
+- The dashboard can generate the same executive export without using the command line.
 - The concept is intentionally framed around synthetic data and validation boundaries.
 - The long-term vision is pre-mission planning, future authorized live support, and post-mission reporting.
 

@@ -78,6 +78,7 @@ The current prototype demonstrates the product workflow, validation gate, eviden
 | `python syncon.py dashboard` | Local browser dashboard for mission setup, metrics, run registry comparison, lifecycle timeline, and artifact links |
 | `python syncon.py run --scenario demo` | CLI runner that generates a complete synthetic evidence package |
 | `python syncon.py export --run-id demo-run-001` | Executive export command that creates a reviewer-ready leave-behind package |
+| Dashboard `Export Brief` button | UI action that generates and opens the executive export package for the selected run |
 | `docs/ENGINEERING_BLUEPRINT.md` | Engineer-ready build plan with architecture, data contracts, APIs, and acceptance criteria |
 | `docs/SYNCON_EXECUTIVE_BRIEF.md` | Concise product brief for technical and non-technical reviewers |
 | `docs/REVIEWER_EVALUATION_GUIDE.md` | Step-by-step review path, acceptance checklist, and demo framing |
@@ -156,6 +157,7 @@ Validated within prototype scope:
 - Local dashboard and generated evidence reports.
 - Run registry and side-by-side mission comparison inside the dashboard.
 - Executive export packages generated from completed runs.
+- Dashboard export controls for reviewer-ready leave-behinds.
 
 Not validated:
 

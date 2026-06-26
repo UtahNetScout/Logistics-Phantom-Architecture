@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
+from .exporter import EXPORT_MANIFEST_NAME, EXPORT_REPORT_NAME, export_run
 from .runner import BANNER, run_demo
 
 ARTIFACT_NAMES = {
@@ -27,6 +28,16 @@ ARTIFACT_NAMES = {
     "red_team.json",
     "timeline.json",
     "REPORT.md",
+}
+EXPORT_ARTIFACT_NAMES = {
+    EXPORT_REPORT_NAME,
+    EXPORT_MANIFEST_NAME,
+    "scenario.json",
+    "validation.json",
+    "red_team.json",
+    "timeline.json",
+    "REPORT.md",
+    "phantoms.json",
 }
 RUN_ID_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+$")
 
@@ -76,10 +87,16 @@ def make_handler(output_dir: Path, default_run_id: str) -> type[BaseHTTPRequestH
             if parsed.path.startswith("/artifact/"):
                 self._send_artifact(parsed.path)
                 return
+            if parsed.path.startswith("/export-artifact/"):
+                self._send_export_artifact(parsed.path)
+                return
             self.send_error(HTTPStatus.NOT_FOUND, "Not found")
 
         def do_POST(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler API
             parsed = urlparse(self.path)
+            if parsed.path == "/export":
+                self._handle_export()
+                return
             if parsed.path != "/run":
                 self.send_error(HTTPStatus.NOT_FOUND, "Not found")
                 return
@@ -115,6 +132,34 @@ def make_handler(output_dir: Path, default_run_id: str) -> type[BaseHTTPRequestH
                 )
                 self._send_html(body, status=HTTPStatus.BAD_REQUEST)
 
+        def _handle_export(self) -> None:
+            length = int(self.headers.get("Content-Length", "0"))
+            payload = self.rfile.read(length).decode("utf-8")
+            form = parse_qs(payload)
+            run_id = default_run_id
+            try:
+                run_id = _safe_run_id(_first(form, "run_id", default_run_id))
+                include_phantoms = _first(form, "include_phantoms", "0") == "1"
+                export_dashboard_run(
+                    output_dir=output_dir,
+                    run_id=run_id,
+                    include_phantoms=include_phantoms,
+                )
+                location = f"/?run_id={quote(run_id)}&message=Executive+export+ready"
+                self.send_response(HTTPStatus.SEE_OTHER)
+                self.send_header("Location", location)
+                self.end_headers()
+            except (FileNotFoundError, ValueError) as exc:
+                artifacts = load_run_artifacts(output_dir / run_id)
+                body = render_dashboard(
+                    output_dir=output_dir,
+                    run_id=run_id,
+                    artifacts=artifacts,
+                    run_summaries=load_run_registry(output_dir),
+                    message=f"Export error: {exc}",
+                )
+                self._send_html(body, status=HTTPStatus.BAD_REQUEST)
+
         def log_message(self, format: str, *args: Any) -> None:
             """Use a concise dashboard log line."""
             print("SYNCON dashboard:", format % args)
@@ -123,6 +168,33 @@ def make_handler(output_dir: Path, default_run_id: str) -> type[BaseHTTPRequestH
             data = body.encode("utf-8")
             self.send_response(status)
             self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        def _send_export_artifact(self, path: str) -> None:
+            parts = [unquote(p) for p in path.split("/") if p]
+            if len(parts) != 3:
+                self.send_error(HTTPStatus.NOT_FOUND, "Export artifact not found")
+                return
+            _, run_id, filename = parts
+            try:
+                run_id = _safe_run_id(run_id)
+                if filename not in EXPORT_ARTIFACT_NAMES:
+                    raise ValueError("unknown export artifact")
+            except ValueError:
+                self.send_error(HTTPStatus.BAD_REQUEST, "Invalid export artifact")
+                return
+
+            artifact_path = dashboard_export_root(output_dir) / run_id / filename
+            if not artifact_path.exists():
+                self.send_error(HTTPStatus.NOT_FOUND, "Export artifact not found")
+                return
+
+            data = artifact_path.read_bytes()
+            content_type = "text/markdown; charset=utf-8" if filename.endswith(".md") else "application/json"
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", content_type)
             self.send_header("Content-Length", str(len(data)))
             self.end_headers()
             self.wfile.write(data)
@@ -155,6 +227,24 @@ def make_handler(output_dir: Path, default_run_id: str) -> type[BaseHTTPRequestH
             self.wfile.write(data)
 
     return SynconDashboardHandler
+
+
+def dashboard_export_root(output_dir: Path) -> Path:
+    """Return the dashboard export root paired with a run output directory."""
+    return output_dir.parent / "exports"
+
+
+def export_dashboard_run(
+    output_dir: Path,
+    run_id: str,
+    include_phantoms: bool = False,
+) -> Dict[str, str]:
+    """Export a dashboard run into the paired executive export directory."""
+    return export_run(
+        run_dir=output_dir / _safe_run_id(run_id),
+        output_dir=dashboard_export_root(output_dir),
+        include_phantoms=include_phantoms,
+    )
 
 
 def load_run_artifacts(run_dir: Path) -> Dict[str, Any]:
@@ -229,6 +319,7 @@ def render_dashboard(
     default_contaminated = scenario.get("contaminated_phantoms", 5)
     default_seed = scenario.get("seed", 42)
     artifact_links = _artifact_links(run_id)
+    export_links = _export_links(run_id, dashboard_export_root(output_dir))
     scenario_label = html.escape(str(scenario.get("scenario_id", "synthetic-contested-logistics-demo")))
     run_label = html.escape(run_id)
     registry = run_summaries if run_summaries is not None else load_run_registry(output_dir)
@@ -529,6 +620,29 @@ def render_dashboard(
       text-decoration: none;
       background: rgba(50, 211, 199, 0.07);
     }}
+    .export-panel {{
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+    }}
+    .export-actions {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+    }}
+    .export-actions form {{
+      display: block;
+    }}
+    .secondary-button {{
+      background: transparent;
+      color: var(--accent-strong);
+      border: 1px solid rgba(50, 211, 199, 0.45);
+    }}
+    .secondary-button:hover {{
+      background: rgba(50, 211, 199, 0.09);
+    }}
     footer {{
       color: var(--muted);
       font-size: 12px;
@@ -640,6 +754,26 @@ def render_dashboard(
       <h2>Evidence Artifacts</h2>
       <div class="links">{artifact_links}</div>
     </section>
+    <section class="panel">
+      <h2>Executive Export</h2>
+      <div class="export-panel">
+        <div>
+          <p class="brief-copy">Generate a reviewer-ready leave-behind package for this run. The compact export includes the executive report, manifest, detailed report, and core JSON artifacts.</p>
+          <div class="links">{export_links}</div>
+        </div>
+        <div class="export-actions">
+          <form method="post" action="/export">
+            <input type="hidden" name="run_id" value="{selected_run}">
+            <button type="submit">Export Brief</button>
+          </form>
+          <form method="post" action="/export">
+            <input type="hidden" name="run_id" value="{selected_run}">
+            <input type="hidden" name="include_phantoms" value="1">
+            <button class="secondary-button" type="submit">Export With Payload</button>
+          </form>
+        </div>
+      </div>
+    </section>
     <footer>{html.escape(BANNER)}<br>Output directory: {html.escape(str(output_dir))}</footer>
   </main>
 </body>
@@ -653,6 +787,20 @@ def _artifact_links(run_id: str) -> str:
         href = f"/artifact/{quote(run_id)}/{quote(name)}"
         links.append(f'<a href="{href}" target="_blank">{html.escape(name)}</a>')
     return "\n".join(links)
+
+
+def _export_links(run_id: str, export_root: Path) -> str:
+    export_dir = export_root / run_id
+    if not export_dir.exists():
+        return '<span class="chip">No export generated</span>'
+
+    links = []
+    for name in [EXPORT_REPORT_NAME, EXPORT_MANIFEST_NAME, "REPORT.md"]:
+        path = export_dir / name
+        if path.exists():
+            href = f"/export-artifact/{quote(run_id)}/{quote(name)}"
+            links.append(f'<a href="{href}" target="_blank">{html.escape(name)}</a>')
+    return "\n".join(links) if links else '<span class="chip">Export pending</span>'
 
 
 def _run_registry_table(summaries: list[Dict[str, Any]], selected_run: str) -> str:
