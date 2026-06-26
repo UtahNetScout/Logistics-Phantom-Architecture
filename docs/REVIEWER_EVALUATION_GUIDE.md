@@ -8,6 +8,8 @@
 
 ## 10-Minute Review Path
 
+For a polished live walkthrough, start with the [Final Demo Guide](FINAL_DEMO_GUIDE.md). Use this guide when evaluating the repository in detail.
+
 ### Minute 0-2: Understand The Product
 
 Read the first page of the [SYNCON Executive Brief](SYNCON_EXECUTIVE_BRIEF.md).
@@ -117,6 +119,7 @@ Expected result:
 
 | Area | Reviewer Question | Expected Signal |
 |------|-------------------|-----------------|
+| First impression | Do I know what to open first? | Final Demo Guide and README point to the dashboard-first walkthrough |
 | Product clarity | Can I explain SYNCON in one minute? | Executive brief and README make the concept clear |
 | Engineering readiness | Could an engineer pick up the build plan? | Engineer handoff package and blueprint define responsibilities, contracts, service boundaries, and acceptance criteria |
 | Demo usability | Can I run or inspect the product quickly? | Dashboard and sample evidence package are easy to evaluate |
@@ -176,7 +179,8 @@ The current repository is valuable because it is disciplined about those boundar
 The next engineering phase should convert the local runner into a service-oriented product skeleton:
 
 1. Start from the [Engineer Handoff Package](ENGINEER_HANDOFF_PACKAGE.md).
-2. Define stable typed models for scenario, validation, red-team, timeline, decision, and export contracts.
-3. Split dashboard actions from execution logic behind an internal service/API boundary.
-4. Add schema tests for persisted JSON artifacts.
-5. Add richer synthetic telemetry schemas without crossing into operational claims.
+2. Preserve the final reviewer path in the [Final Demo Guide](FINAL_DEMO_GUIDE.md).
+3. Define stable typed models for scenario, validation, red-team, timeline, decision, and export contracts.
+4. Split dashboard actions from execution logic behind an internal service/API boundary.
+5. Add schema tests for persisted JSON artifacts.
+6. Add richer synthetic telemetry schemas without crossing into operational claims.

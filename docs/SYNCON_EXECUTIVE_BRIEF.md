@@ -12,6 +12,8 @@
 
 SYNCON is a synthetic contested-logistics platform that demonstrates how an agentic architecture could generate, validate, evaluate, and report on phantom convoy telemetry around a protected synthetic convoy.
 
+For the cleanest walkthrough, start with the [Final Demo Guide](FINAL_DEMO_GUIDE.md), then use this brief as the one-page product explanation.
+
 The current product demo turns the Logistics Phantom architecture into a runnable workflow:
 
 1. Configure a synthetic contested-logistics scenario.
@@ -104,6 +106,7 @@ All current results are synthetic prototype results. They are useful for product
 | Area | Current State |
 |------|---------------|
 | Architecture | Documented in Logistics Phantom blueprint |
+| Final demo path | Packaged in the Final Demo Guide |
 | Engineer handoff | Packaged with module responsibilities, service boundaries, contracts, and acceptance criteria |
 | Product shell | Implemented as SYNCON runner |
 | Dashboard | Implemented as local browser dashboard |
@@ -125,3 +128,5 @@ SYNCON is strongest when presented as an AI systems architecture and technical p
 > SYNCON turns a contested-logistics concept into a runnable synthetic product demo with agent boundaries, validation gates, red-team metrics, a mission timeline, and generated evidence reports.
 
 That is the value of the project today. It shows the ability to convert an ambiguous defense-tech idea into an engineer-ready, testable, reviewable product workflow.
+
+For a live conversation, lead with the dashboard, then close with the Engineer Handoff Package.

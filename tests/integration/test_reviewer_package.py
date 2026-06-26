@@ -14,6 +14,7 @@ def test_reviewer_documents_are_linked_from_readme():
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
 
     expected_links = [
+        "docs/FINAL_DEMO_GUIDE.md",
         "docs/ENGINEER_HANDOFF_PACKAGE.md",
         "docs/ENGINEERING_BLUEPRINT.md",
         "docs/SYNCON_EXECUTIVE_BRIEF.md",
@@ -30,6 +31,7 @@ def test_reviewer_documents_are_linked_from_readme():
 def test_reviewer_docs_keep_scope_boundaries_visible():
     docs = [
         ROOT / "README.md",
+        ROOT / "docs" / "FINAL_DEMO_GUIDE.md",
         ROOT / "docs" / "ENGINEER_HANDOFF_PACKAGE.md",
         ROOT / "docs" / "SYNCON_EXECUTIVE_BRIEF.md",
         ROOT / "docs" / "REVIEWER_EVALUATION_GUIDE.md",
@@ -71,6 +73,32 @@ def test_engineer_handoff_package_contains_build_ready_sections():
         "OperatorDecision",
         "Convoy Shield",
         "not operational",
+    ]
+
+    for section in required_sections:
+        assert section in text
+    for term in required_terms:
+        assert term in text
+
+
+def test_final_demo_guide_contains_polished_walkthrough():
+    text = (ROOT / "docs" / "FINAL_DEMO_GUIDE.md").read_text(encoding="utf-8")
+
+    required_sections = [
+        "What To Show First",
+        "Five-Minute Demo Path",
+        "Fifteen-Minute Demo Path",
+        "Reviewer Proof Points",
+        "Strongest Positioning",
+        "What Not To Say",
+        "Final Repository Readiness Checklist",
+    ]
+    required_terms = [
+        "Operator Decision Layer",
+        "Mission Replay",
+        "Engineer Handoff Package",
+        "not deployment-ready",
+        "synthetic",
     ]
 
     for section in required_sections:

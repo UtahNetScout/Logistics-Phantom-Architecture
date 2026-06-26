@@ -2,6 +2,8 @@
 
 This script is designed for a short walkthrough with a technical product leader, engineer, recruiter, or defense-tech contact.
 
+For the polished final walkthrough order, use the [Final Demo Guide](FINAL_DEMO_GUIDE.md). This script is the shorter talk track.
+
 ---
 
 ## 30-Second Version

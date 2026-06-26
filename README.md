@@ -13,15 +13,22 @@ This repository does not contain classified data, real convoy telemetry, real ro
 
 ---
 
-## Quick Evaluation Path
+## Product Readiness At A Glance
 
-If you are reviewing this project cold, use this path:
+| Area | Status |
+|------|--------|
+| Runnable demo | Implemented through CLI and local dashboard |
+| Dashboard | Mission setup, run registry, comparison insights, operator decisions, replay, timeline, artifacts, and export controls |
+| Evidence package | Generated JSON and Markdown artifacts for each synthetic run |
+| Engineer handoff | Dedicated handoff package plus deeper engineering blueprint |
+| Tests | Unit, integration, adversary, performance, dashboard, export, and reviewer-package checks |
+| Scope | Synthetic-only, unclassified, not deployment-ready |
 
-1. Read the [SYNCON Executive Brief](docs/SYNCON_EXECUTIVE_BRIEF.md).
-2. Open the [Engineer Handoff Package](docs/ENGINEER_HANDOFF_PACKAGE.md).
-3. Open the [Reviewer Evaluation Guide](docs/REVIEWER_EVALUATION_GUIDE.md).
-4. Inspect the committed [sample demo evidence package](examples/syncon-demo/README.md).
-5. Run the local dashboard:
+---
+
+## What To Show First
+
+If you only have a few minutes, run the dashboard and show the product surface before opening the docs:
 
 ```bash
 python syncon.py dashboard
@@ -33,7 +40,32 @@ Then open:
 http://127.0.0.1:8765
 ```
 
-6. Run a fresh synthetic mission package:
+Show Mission Setup, Run Registry, Comparison Insights, Operator Decision Layer, Mission Replay, Evidence Artifacts, and Executive Export. The [Final Demo Guide](docs/FINAL_DEMO_GUIDE.md) provides the polished walkthrough.
+
+---
+
+## Quick Evaluation Path
+
+If you are reviewing this project cold, use this path:
+
+1. Open the [Final Demo Guide](docs/FINAL_DEMO_GUIDE.md).
+2. Read the [SYNCON Executive Brief](docs/SYNCON_EXECUTIVE_BRIEF.md).
+3. Open the [Engineer Handoff Package](docs/ENGINEER_HANDOFF_PACKAGE.md).
+4. Open the [Reviewer Evaluation Guide](docs/REVIEWER_EVALUATION_GUIDE.md).
+5. Inspect the committed [sample demo evidence package](examples/syncon-demo/README.md).
+6. Run the local dashboard:
+
+```bash
+python syncon.py dashboard
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8765
+```
+
+7. Run a fresh synthetic mission package:
 
 ```bash
 python syncon.py run --scenario demo
@@ -43,7 +75,7 @@ Generated artifacts are written to `runs/{run_id}/`.
 
 Available synthetic scenario templates include `demo`, `baseline`, `dense-phantom`, `validation-stress`, and `high-threat-synthetic`.
 
-7. Export a reviewer-ready executive package:
+8. Export a reviewer-ready executive package:
 
 ```bash
 python syncon.py export --run-id demo-run-001
@@ -84,6 +116,7 @@ The current prototype demonstrates the product workflow, validation gate, eviden
 | `python syncon.py run --scenario demo` | CLI runner that generates a complete synthetic evidence package from a selected scenario template |
 | `python syncon.py export --run-id demo-run-001` | Executive export command that creates a reviewer-ready leave-behind package |
 | Dashboard `Export Brief` button | UI action that generates and opens the executive export package for the selected run |
+| `docs/FINAL_DEMO_GUIDE.md` | Polished final walkthrough for demos, reviewer conversations, and first impressions |
 | `docs/ENGINEER_HANDOFF_PACKAGE.md` | First-read engineering handoff packet with module responsibilities, service boundaries, acceptance criteria, and safety rules |
 | `docs/ENGINEERING_BLUEPRINT.md` | Engineer-ready build plan with architecture, data contracts, APIs, and acceptance criteria |
 | `docs/SYNCON_EXECUTIVE_BRIEF.md` | Concise product brief for technical and non-technical reviewers |
@@ -188,6 +221,7 @@ Not validated:
 |-- src/syncon/                       # Product runner and local dashboard
 |-- src/prototype/                    # Prototype modules for architecture validation
 |-- tests/                            # Unit, integration, adversary, and performance tests
+|-- docs/FINAL_DEMO_GUIDE.md          # Final executive demo walkthrough
 |-- docs/ENGINEER_HANDOFF_PACKAGE.md  # Engineer handoff packet
 |-- docs/ENGINEERING_BLUEPRINT.md     # Engineer-ready implementation blueprint
 |-- docs/SYNCON_EXECUTIVE_BRIEF.md    # Product overview
@@ -201,7 +235,7 @@ Not validated:
 
 ## Document Control
 
-**Version:** 4.0  
-**Classification:** UNCLASSIFIED synthetic prototype artifact  
-**Last updated:** 2026-06-24  
+**Version:** 5.0
+**Classification:** UNCLASSIFIED synthetic prototype artifact
+**Last updated:** 2026-06-26
 **Author:** Ronald Taylor / UtahNetScout

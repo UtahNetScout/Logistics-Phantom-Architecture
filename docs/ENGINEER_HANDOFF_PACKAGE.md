@@ -202,6 +202,7 @@ An engineer should be able to answer yes to each item before beginning implement
 
 ## 12. Related Documents
 
+- [Final Demo Guide](FINAL_DEMO_GUIDE.md)
 - [Engineering Blueprint](ENGINEERING_BLUEPRINT.md)
 - [SYNCON Executive Brief](SYNCON_EXECUTIVE_BRIEF.md)
 - [Reviewer Evaluation Guide](REVIEWER_EVALUATION_GUIDE.md)
