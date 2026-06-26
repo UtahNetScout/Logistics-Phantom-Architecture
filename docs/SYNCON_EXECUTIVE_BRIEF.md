@@ -46,6 +46,7 @@ Within prototype scope, SYNCON demonstrates:
 - Simplified red-team SNR and detection metrics.
 - Evidence artifacts suitable for engineering review.
 - A local dashboard for non-code inspection.
+- Mission replay that presents the selected run as a setup-to-report playback console.
 
 The command-line flow is:
 

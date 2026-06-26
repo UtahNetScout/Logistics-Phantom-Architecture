@@ -68,6 +68,7 @@ The current prototype demonstrates the product workflow, validation gate, eviden
 - Seeds intentionally unsafe phantom records so Agent C can prove it rejects them.
 - Produces a complete evidence package: scenario, phantoms, validation, red-team metrics, timeline, and Markdown report.
 - Provides a local high-tech dashboard for non-code review.
+- Replays each generated mission as a deterministic setup-to-report sequence in the dashboard.
 - Separates the product shell, engineering blueprint, validation boundaries, and future operational vision.
 - Keeps all data synthetic and unclassified.
 
@@ -77,7 +78,7 @@ The current prototype demonstrates the product workflow, validation gate, eviden
 
 | Surface | Purpose |
 |---------|---------|
-| `python syncon.py dashboard` | Local browser dashboard for mission setup, metrics, run registry comparison, lifecycle timeline, and artifact links |
+| `python syncon.py dashboard` | Local browser dashboard for mission setup, metrics, run registry comparison, mission replay, lifecycle timeline, and artifact links |
 | `python syncon.py run --scenario demo` | CLI runner that generates a complete synthetic evidence package from a selected scenario template |
 | `python syncon.py export --run-id demo-run-001` | Executive export command that creates a reviewer-ready leave-behind package |
 | Dashboard `Export Brief` button | UI action that generates and opens the executive export package for the selected run |
@@ -159,6 +160,7 @@ Validated within prototype scope:
 - Local dashboard and generated evidence reports.
 - Run registry and side-by-side mission comparison inside the dashboard.
 - Deterministic comparison insights that explain key differences across generated runs.
+- Mission replay console that turns run artifacts into a setup-to-report playback view.
 - Executive export packages generated from completed runs.
 - Dashboard export controls for reviewer-ready leave-behinds.
 - Scenario templates for baseline, dense phantom, validation stress, and high-threat synthetic review profiles.

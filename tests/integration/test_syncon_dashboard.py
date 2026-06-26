@@ -7,6 +7,7 @@ UNCLASSIFIED SYNTHETIC PROTOTYPE DATA - PORTFOLIO PROOF-OF-CONCEPT
 import json
 
 from src.syncon.dashboard import (
+    build_mission_replay,
     dashboard_export_root,
     export_dashboard_run,
     generate_comparison_insights,
@@ -43,6 +44,10 @@ def test_dashboard_renders_metrics_and_artifact_links(tmp_path):
     assert "Run Registry And Comparison" in html
     assert "Comparison Insights" in html
     assert "More runs needed" in html
+    assert "Mission Replay" in html
+    assert "Replay View" in html
+    assert "Synthetic phantom telemetry generated" in html
+    assert "Agent C approved" in html
     assert "Run Summary" in html
     assert "Validation And Red-Team Metrics" in html
     assert "Mission Timeline" in html
@@ -52,6 +57,33 @@ def test_dashboard_renders_metrics_and_artifact_links(tmp_path):
     assert "REPORT.md" in html
     assert "dashboard-run" in html
     assert "Run complete" in html
+
+
+def test_dashboard_builds_mission_replay_from_generated_artifacts(tmp_path):
+    run_demo(
+        output_dir=tmp_path,
+        run_id="replay-run",
+        phantom_count=25,
+        contaminated_phantoms=2,
+        n_workers=1,
+    )
+
+    artifacts = load_run_artifacts(tmp_path / "replay-run")
+    replay = build_mission_replay(
+        artifacts["timeline"]["events"],
+        artifacts["scenario"],
+        artifacts["validation"],
+        artifacts["red_team"],
+    )
+
+    assert replay["summary"][0]["label"] == "Replay Steps"
+    assert replay["summary"][1]["value"] == "25"
+    assert len(replay["events"]) == len(artifacts["timeline"]["events"])
+    assert replay["events"][0]["clock"] == "T+00"
+    assert replay["events"][-1]["progress"] == 100
+    assert any(card["tone"] == "validation" for card in replay["events"])
+    assert any(card["tone"] == "red-team" for card in replay["events"])
+    assert any("Evidence package ready" in card["signal"] for card in replay["events"])
 
 
 def test_dashboard_loads_generated_artifacts(tmp_path):

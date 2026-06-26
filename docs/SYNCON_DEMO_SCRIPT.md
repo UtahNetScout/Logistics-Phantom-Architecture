@@ -47,6 +47,7 @@ Call out the important surfaces:
 - Red-team SNR metrics.
 - Run registry comparison across completed demo missions.
 - Comparison insights that explain the strongest differences across completed runs.
+- Mission replay that shows setup, phantom generation, validation, red-team pressure, and evidence generation as a product console.
 - Mission lifecycle timeline.
 - Generated artifact links.
 

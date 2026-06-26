@@ -380,6 +380,58 @@ def generate_comparison_insights(summaries: list[Dict[str, Any]]) -> list[Dict[s
     return insights
 
 
+def build_mission_replay(
+    events: Iterable[Dict[str, Any]],
+    scenario: Dict[str, Any],
+    validation: Dict[str, Any],
+    red_team: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Build deterministic replay cards from run artifacts."""
+    replay_events = [event for event in events if isinstance(event, dict)]
+    if not replay_events:
+        return {
+            "summary": [
+                {"label": "Replay Steps", "value": "0"},
+                {"label": "Phantom Layer", "value": "-"},
+                {"label": "Validation Gate", "value": "Standby"},
+                {"label": "Evidence State", "value": "Pending"},
+            ],
+            "events": [],
+        }
+
+    total = len(replay_events)
+    summary = [
+        {"label": "Replay Steps", "value": _fmt_int(total)},
+        {"label": "Phantom Layer", "value": _fmt_int(scenario.get("phantom_count"))},
+        {
+            "label": "Validation Gate",
+            "value": f"{_fmt_int(validation.get('rejected_count'))} rejected",
+        },
+        {
+            "label": "Red-Team SNR",
+            "value": _fmt_float(red_team.get("snr"), 4),
+        },
+    ]
+    cards = []
+    for index, event in enumerate(replay_events):
+        stage = str(event.get("stage", "-"))
+        title = str(event.get("event", "-"))
+        detail = str(event.get("detail", "-"))
+        cards.append(
+            {
+                "clock": f"T+{index * 5:02d}",
+                "step": f"{index + 1}/{total}",
+                "stage": _stage_label(stage),
+                "event": title,
+                "detail": detail,
+                "signal": _replay_signal(title, scenario, validation, red_team),
+                "progress": int(round(((index + 1) / total) * 100)),
+                "tone": _stage_tone(stage, title),
+            }
+        )
+    return {"summary": summary, "events": cards}
+
+
 def render_dashboard(
     output_dir: Path,
     run_id: str,
@@ -405,6 +457,7 @@ def render_dashboard(
     run_label = html.escape(run_id)
     registry = run_summaries if run_summaries is not None else load_run_registry(output_dir)
     comparison_insights = generate_comparison_insights(registry)
+    mission_replay = build_mission_replay(events, scenario, validation, red_team)
 
     return f"""<!doctype html>
 <html lang="en">
@@ -688,6 +741,119 @@ def render_dashboard(
       display: grid;
       gap: 10px;
     }}
+    .replay-console {{
+      background: linear-gradient(180deg, rgba(20, 35, 49, 0.95), rgba(10, 20, 29, 0.98));
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }}
+    .replay-header {{
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px;
+      align-items: start;
+      margin-bottom: 14px;
+    }}
+    .replay-copy {{
+      color: #c5d5df;
+      margin: 0;
+    }}
+    .replay-summary {{
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 14px;
+    }}
+    .replay-summary-item {{
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 10px;
+      background: rgba(7, 16, 23, 0.55);
+      min-width: 0;
+    }}
+    .replay-summary-item span {{
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      margin-bottom: 3px;
+    }}
+    .replay-summary-item strong {{
+      display: block;
+      color: #ffffff;
+      overflow-wrap: anywhere;
+    }}
+    .replay-track {{
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+    }}
+    .replay-card {{
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #0c1822;
+      padding: 12px;
+      min-height: 210px;
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+      gap: 10px;
+      position: relative;
+      overflow: hidden;
+    }}
+    .replay-card::before {{
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: var(--accent);
+    }}
+    .replay-card.validation::before {{ background: var(--ok); }}
+    .replay-card.red-team::before {{ background: var(--warn); }}
+    .replay-card.post::before {{ background: var(--blue); }}
+    .replay-meta {{
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+    }}
+    .replay-stage {{
+      color: var(--accent-strong);
+      font-size: 12px;
+      text-transform: uppercase;
+      font-weight: 700;
+    }}
+    .replay-title {{
+      color: #ffffff;
+      font-weight: 700;
+      margin-top: 3px;
+    }}
+    .replay-detail {{
+      color: #b9c9d5;
+      font-size: 13px;
+    }}
+    .replay-signal {{
+      border-top: 1px solid var(--line);
+      padding-top: 8px;
+      color: #d8e6ef;
+      font-size: 12px;
+    }}
+    .replay-bar {{
+      height: 6px;
+      border-radius: 999px;
+      background: #071017;
+      border: 1px solid var(--line);
+      overflow: hidden;
+      margin-top: 8px;
+    }}
+    .replay-fill {{
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--blue));
+    }}
     .timeline-item {{
       background: var(--panel);
       border: 1px solid var(--line);
@@ -752,6 +918,9 @@ def render_dashboard(
     }}
     @media (max-width: 900px) {{
       .grid, form, .insights {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+      .replay-header {{ grid-template-columns: 1fr; }}
+      .replay-summary {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+      .replay-track {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
       .mission-brief {{ grid-template-columns: 1fr; }}
       .topbar {{ align-items: flex-start; flex-direction: column; }}
       .status-strip {{ justify-content: flex-start; }}
@@ -759,6 +928,7 @@ def render_dashboard(
     @media (max-width: 560px) {{
       main {{ padding: 16px; }}
       .grid, form, .insights {{ grid-template-columns: 1fr; }}
+      .replay-summary, .replay-track {{ grid-template-columns: 1fr; }}
       .timeline-item {{ grid-template-columns: 1fr; }}
     }}
   </style>
@@ -855,6 +1025,10 @@ def render_dashboard(
         <tr><td>Detector detection rate</td><td>{_fmt_percent(red_team.get("detection_rate"))}</td></tr>
         <tr><td>Detector precision</td><td>{_fmt_float(red_team.get("precision"), 4)}</td></tr>
       </table>
+    </section>
+    <section>
+      <h2>Mission Replay</h2>
+      {_mission_replay_console(mission_replay)}
     </section>
     <section>
       <h2>Mission Timeline</h2>
@@ -958,6 +1132,65 @@ def _comparison_insight_cards(insights: list[Dict[str, str]]) -> str:
     return "\n".join(rows)
 
 
+def _mission_replay_console(replay: Dict[str, Any]) -> str:
+    summary_items = []
+    for item in replay.get("summary", []):
+        summary_items.append(
+            '<div class="replay-summary-item">'
+            f'<span>{html.escape(str(item.get("label", "-")))}</span>'
+            f'<strong>{html.escape(str(item.get("value", "-")))}</strong>'
+            "</div>"
+        )
+
+    cards = []
+    for item in replay.get("events", []):
+        progress = max(0, min(100, int(item.get("progress", 0))))
+        cards.append(
+            f'<div class="replay-card {html.escape(str(item.get("tone", "")))}">'
+            '<div class="replay-meta">'
+            f'<span>{html.escape(str(item.get("clock", "-")))}</span>'
+            f'<span>Step {html.escape(str(item.get("step", "-")))}</span>'
+            "</div>"
+            "<div>"
+            f'<div class="replay-stage">{html.escape(str(item.get("stage", "-")))}</div>'
+            f'<div class="replay-title">{html.escape(str(item.get("event", "-")))}</div>'
+            "</div>"
+            f'<div class="replay-detail">{html.escape(str(item.get("detail", "-")))}</div>'
+            "<div>"
+            f'<div class="replay-signal">{html.escape(str(item.get("signal", "-")))}</div>'
+            '<div class="replay-bar">'
+            f'<div class="replay-fill" style="width: {progress}%"></div>'
+            "</div>"
+            "</div>"
+            "</div>"
+        )
+
+    if not cards:
+        cards.append(
+            '<div class="replay-card">'
+            '<div class="replay-meta"><span>T+00</span><span>Standby</span></div>'
+            '<div><div class="replay-stage">Replay Pending</div>'
+            '<div class="replay-title">No run artifacts found yet.</div></div>'
+            '<div class="replay-detail">Run the demo to populate mission replay cards.</div>'
+            '<div><div class="replay-signal">Synthetic console waiting for generated evidence.</div>'
+            '<div class="replay-bar"><div class="replay-fill" style="width: 0%"></div></div></div>'
+            "</div>"
+        )
+
+    return (
+        '<div class="replay-console">'
+        '<div class="replay-header">'
+        "<div>"
+        '<p class="replay-copy">A deterministic playback of the selected synthetic run, from setup through evidence generation.</p>'
+        "</div>"
+        '<span class="chip">Replay View</span>'
+        "</div>"
+        f'<div class="replay-summary">{"".join(summary_items)}</div>'
+        f'<div class="replay-track">{"".join(cards)}</div>'
+        "</div>"
+    )
+
+
 def _message_html(message: str) -> str:
     if not message:
         return ""
@@ -1003,6 +1236,51 @@ def _timeline_cards(events: Iterable[Dict[str, Any]]) -> str:
         rows.append('<div class="timeline-item"><div class="stage">Standby</div><div><div class="timeline-title">No run artifacts found yet.</div><div class="timeline-detail">Run the demo to populate the mission timeline.</div></div></div>')
     rows.append("</div>")
     return "\n".join(rows)
+
+
+def _stage_label(stage: str) -> str:
+    return stage.replace("-", " ").title() if stage else "-"
+
+
+def _stage_tone(stage: str, event: str) -> str:
+    normalized = stage.lower()
+    normalized_event = event.lower()
+    if "validation" in normalized_event or "agent c" in normalized_event:
+        return "validation"
+    if "red-team" in normalized_event or "detector" in normalized_event:
+        return "red-team"
+    if "post" in normalized:
+        return "post"
+    return ""
+
+
+def _replay_signal(
+    event: str,
+    scenario: Dict[str, Any],
+    validation: Dict[str, Any],
+    red_team: Dict[str, Any],
+) -> str:
+    normalized = event.lower()
+    if "scenario" in normalized:
+        label = scenario.get("scenario_label", "Synthetic")
+        multiplier = scenario.get("phantom_multiplier")
+        multiplier_text = f"{_fmt_int(multiplier)}x" if isinstance(multiplier, int) else "configured"
+        return f"{label} profile armed with {multiplier_text} synthetic pressure."
+    if "telemetry" in normalized or "phantom" in normalized:
+        return f"{_fmt_int(scenario.get('phantom_count'))} synthetic records generated for review."
+    if "validation" in normalized or "agent c" in normalized:
+        return (
+            f"Agent C approved {_fmt_int(validation.get('approved_count'))} and rejected "
+            f"{_fmt_int(validation.get('rejected_count'))} records."
+        )
+    if "red-team" in normalized or "detector" in normalized:
+        return (
+            f"Detector pressure logged at {_fmt_percent(red_team.get('detection_rate'))} "
+            f"with SNR {_fmt_float(red_team.get('snr'), 4)}."
+        )
+    if "evidence" in normalized or "report" in normalized:
+        return "Evidence package ready for reviewer inspection."
+    return "Lifecycle event captured in the synthetic mission record."
 
 
 def _fmt_int(value: object) -> str:
