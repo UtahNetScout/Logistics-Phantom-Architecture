@@ -53,6 +53,12 @@ The command-line flow is:
 python syncon.py run --scenario demo
 ```
 
+The executive export flow is:
+
+```bash
+python syncon.py export --run-id demo-run-001
+```
+
 The dashboard flow is:
 
 ```bash
@@ -91,6 +97,7 @@ All current results are synthetic prototype results. They are useful for product
 | Product shell | Implemented as SYNCON runner |
 | Dashboard | Implemented as local browser dashboard |
 | Evidence package | Generated as JSON and Markdown artifacts |
+| Executive export | Implemented as a generated reviewer package |
 | Tests | Full suite passing |
 | Operational deployment | Not implemented |
 | Future live mode | Roadmap concept: Convoy Shield |

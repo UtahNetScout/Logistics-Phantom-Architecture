@@ -345,6 +345,18 @@ def build_parser() -> argparse.ArgumentParser:
     dashboard_parser.add_argument("--port", type=int, default=8765)
     dashboard_parser.add_argument("--output-dir", default="runs")
     dashboard_parser.add_argument("--run-id", default="demo-run-001")
+    export_parser = subparsers.add_parser(
+        "export",
+        help="Export a completed run into a reviewer-ready executive package.",
+    )
+    export_parser.add_argument("--run-id", default="demo-run-001")
+    export_parser.add_argument("--input-dir", default="runs")
+    export_parser.add_argument("--output-dir", default="exports")
+    export_parser.add_argument(
+        "--include-phantoms",
+        action="store_true",
+        help="Include the large phantoms.json payload in the export package.",
+    )
     return parser
 
 
@@ -375,6 +387,23 @@ def main(argv: Sequence[str] | None = None) -> int:
             output_dir=Path(args.output_dir),
             default_run_id=args.run_id,
         )
+        return 0
+    if args.command == "export":
+        from src.syncon.exporter import export_run
+
+        try:
+            result = export_run(
+                run_dir=Path(args.input_dir) / args.run_id,
+                output_dir=Path(args.output_dir),
+                include_phantoms=args.include_phantoms,
+            )
+        except (FileNotFoundError, ValueError) as exc:
+            parser.error(str(exc))
+            return 2
+        print("SYNCON executive export complete.")
+        print(f"Export directory: {result['export_dir']}")
+        print(f"Executive report: {result['report_path']}")
+        print(f"Manifest: {result['manifest_path']}")
         return 0
     parser.error(f"Unsupported command: {args.command}")
     return 2

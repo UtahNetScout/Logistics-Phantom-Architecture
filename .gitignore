@@ -19,4 +19,6 @@ build/
 *.tmp
 
 runs/
+exports/
 tmp-pytest*/
+tmp-*/

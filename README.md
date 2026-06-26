@@ -40,6 +40,14 @@ python syncon.py run --scenario demo
 
 Generated artifacts are written to `runs/{run_id}/`.
 
+6. Export a reviewer-ready executive package:
+
+```bash
+python syncon.py export --run-id demo-run-001
+```
+
+Exported reports are written to `exports/{run_id}/`.
+
 ---
 
 ## Why This Exists
@@ -69,6 +77,7 @@ The current prototype demonstrates the product workflow, validation gate, eviden
 |---------|---------|
 | `python syncon.py dashboard` | Local browser dashboard for mission setup, metrics, run registry comparison, lifecycle timeline, and artifact links |
 | `python syncon.py run --scenario demo` | CLI runner that generates a complete synthetic evidence package |
+| `python syncon.py export --run-id demo-run-001` | Executive export command that creates a reviewer-ready leave-behind package |
 | `docs/ENGINEERING_BLUEPRINT.md` | Engineer-ready build plan with architecture, data contracts, APIs, and acceptance criteria |
 | `docs/SYNCON_EXECUTIVE_BRIEF.md` | Concise product brief for technical and non-technical reviewers |
 | `docs/REVIEWER_EVALUATION_GUIDE.md` | Step-by-step review path, acceptance checklist, and demo framing |
@@ -103,6 +112,8 @@ Each SYNCON run writes:
 | `red_team.json` | Simplified red-team detector results |
 | `timeline.json` | Pre-mission, during-mission, and post-mission event timeline |
 | `REPORT.md` | Human-readable evidence report |
+| `exports/{run_id}/SYNCON_EXECUTIVE_REPORT.md` | Reviewer-ready executive leave-behind generated from a completed run |
+| `exports/{run_id}/EXPORT_MANIFEST.json` | Export manifest listing included artifacts and scope |
 
 The committed sample package omits `phantoms.json` because full telemetry payloads can be large. Running SYNCON locally regenerates the full artifact set.
 
@@ -144,6 +155,7 @@ Validated within prototype scope:
 - Simplified red-team SNR and detection metrics.
 - Local dashboard and generated evidence reports.
 - Run registry and side-by-side mission comparison inside the dashboard.
+- Executive export packages generated from completed runs.
 
 Not validated:
 
@@ -169,6 +181,7 @@ Not validated:
 |-- docs/REVIEWER_EVALUATION_GUIDE.md # Reviewer walkthrough and acceptance checklist
 |-- docs/SYNCON_DEMO_SCRIPT.md        # Short demo talk track
 |-- examples/syncon-demo/             # Lightweight committed sample evidence package
+|-- exports/                          # Generated executive export packages, ignored by git
 ```
 
 ---

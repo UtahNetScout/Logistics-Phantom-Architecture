@@ -62,6 +62,7 @@ The product should expose six primary views.
 | Red-Team Lab | Evaluate synthetic swarm realism with simplified adversary models. | Compare multiplier levels, SNR trend, detection rate, detector configuration. |
 | Mission Timeline | Show pre-mission, during-mission, and post-mission stages. | Review setup, run events, validation changes, operator actions, and report status. |
 | Evidence Report | Produce portfolio-ready output for reviewers. | Export Markdown/JSON summary, test status, validation boundaries, caveats, and lifecycle narrative. |
+| Executive Export | Package a completed run for external review. | Generate executive Markdown report, compact artifact bundle, and export manifest. |
 
 Minimum viable product can be a local web dashboard, Streamlit app, FastAPI backend plus React frontend, or CLI plus generated report. A web dashboard is preferred for "ready to use product" presentation.
 
@@ -261,6 +262,7 @@ The product API should be designed around scenario runs.
 | `GET` | `/api/scenarios/{scenario_id}/runs/{run_id}/validation` | Fetch Agent C validation decisions. |
 | `GET` | `/api/scenarios/{scenario_id}/runs/{run_id}/red-team` | Fetch red-team detector metrics. |
 | `GET` | `/api/scenarios/{scenario_id}/runs/{run_id}/report` | Export Markdown or JSON evidence report. |
+| `POST` | `/api/scenarios/{scenario_id}/runs/{run_id}/export` | Generate an executive export package from an existing run. |
 
 ### Backend Acceptance Criteria
 
@@ -314,6 +316,8 @@ Deliverables:
 - `src/syncon/` package with scenario/run orchestration.
 - CLI command: `python syncon.py run --scenario demo`.
 - Generated JSON artifacts and `REPORT.md` for each run.
+- CLI export command: `python syncon.py export --run-id demo-run-001`.
+- Generated `SYNCON_EXECUTIVE_REPORT.md` and `EXPORT_MANIFEST.json` for reviewer leave-behinds.
 - README quickstart updated for product flow.
 
 Done when:
