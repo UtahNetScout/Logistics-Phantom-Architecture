@@ -105,6 +105,7 @@ All current results are synthetic prototype results. They are useful for product
 | Product shell | Implemented as SYNCON runner |
 | Dashboard | Implemented as local browser dashboard |
 | Scenario templates | Implemented for reusable synthetic review profiles |
+| Comparison insights | Implemented as deterministic dashboard summaries across completed runs |
 | Evidence package | Generated as JSON and Markdown artifacts |
 | Executive export | Implemented as a generated reviewer package from CLI and dashboard |
 | Tests | Full suite passing |

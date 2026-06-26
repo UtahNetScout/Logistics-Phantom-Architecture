@@ -61,6 +61,7 @@ The product should expose six primary views.
 | Pipeline Runner | Execute Agent A, Agent B, Agent C, and red-team stages. | Start run, stop run, inspect stage status, download artifacts. |
 | Validation Dashboard | Show Agent C approval/rejection results. | Inspect rejected phantom IDs, nearest ground-truth distance, latency, false positive checks. |
 | Red-Team Lab | Evaluate synthetic swarm realism with simplified adversary models. | Compare multiplier levels, SNR trend, detection rate, detector configuration. |
+| Comparison Insights | Explain differences across completed runs. | Summarize highest volume, strongest validation exercise, lowest SNR, detection-rate watch items, and scenario coverage. |
 | Mission Timeline | Show pre-mission, during-mission, and post-mission stages. | Review setup, run events, validation changes, operator actions, and report status. |
 | Evidence Report | Produce portfolio-ready output for reviewers. | Export Markdown/JSON summary, test status, validation boundaries, caveats, and lifecycle narrative. |
 | Executive Export | Package a completed run for external review. | Generate executive Markdown report, compact artifact bundle, and export manifest. |

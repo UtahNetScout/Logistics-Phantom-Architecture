@@ -51,6 +51,7 @@ Evaluate whether the dashboard makes the product understandable without reading 
 - Agent C validation metrics are visible.
 - Red-team metrics are visible.
 - Run registry comparison is visible after multiple missions have been generated.
+- Comparison insights explain highest synthetic volume, validation exercise, SNR, detection-rate watch items, and scenario coverage.
 - Pre-mission, during-mission, and post-mission lifecycle events are visible.
 - Artifact links are available.
 - `Export Brief` generates the executive leave-behind package for the selected run.
@@ -118,6 +119,7 @@ Expected result:
 | Engineering readiness | Could an engineer pick up the build plan? | Engineering blueprint defines surfaces, contracts, and acceptance criteria |
 | Demo usability | Can I run or inspect the product quickly? | Dashboard and sample evidence package are easy to evaluate |
 | Product console depth | Can I compare multiple generated missions? | Dashboard registry lists completed runs with key metrics |
+| Insight layer | Does the dashboard explain run differences? | Comparison Insights summarize volume, validation, SNR, detection rate, and profile coverage |
 | Scenario depth | Can I demonstrate different synthetic review profiles? | CLI and dashboard expose reusable scenario templates |
 | Export readiness | Can I hand someone a generated report? | Export command writes `SYNCON_EXECUTIVE_REPORT.md` and `EXPORT_MANIFEST.json` |
 | UI export readiness | Can a reviewer export from the console? | Dashboard `Export Brief` button generates export links |

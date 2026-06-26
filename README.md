@@ -158,6 +158,7 @@ Validated within prototype scope:
 - Simplified red-team SNR and detection metrics.
 - Local dashboard and generated evidence reports.
 - Run registry and side-by-side mission comparison inside the dashboard.
+- Deterministic comparison insights that explain key differences across generated runs.
 - Executive export packages generated from completed runs.
 - Dashboard export controls for reviewer-ready leave-behinds.
 - Scenario templates for baseline, dense phantom, validation stress, and high-threat synthetic review profiles.

@@ -9,6 +9,7 @@ import json
 from src.syncon.dashboard import (
     dashboard_export_root,
     export_dashboard_run,
+    generate_comparison_insights,
     load_run_artifacts,
     load_run_registry,
     render_dashboard,
@@ -40,6 +41,8 @@ def test_dashboard_renders_metrics_and_artifact_links(tmp_path):
     assert "Dense Phantom" in html
     assert "Validation Stress" in html
     assert "Run Registry And Comparison" in html
+    assert "Comparison Insights" in html
+    assert "More runs needed" in html
     assert "Run Summary" in html
     assert "Validation And Red-Team Metrics" in html
     assert "Mission Timeline" in html
@@ -98,6 +101,13 @@ def test_dashboard_registry_compares_multiple_runs(tmp_path):
     assert registry[0]["scenario_label"] == "Dense Phantom"
     assert registry[0]["rejected_count"] >= 3
 
+    insights = generate_comparison_insights(registry)
+    titles = [insight["title"] for insight in insights]
+    assert "Highest synthetic volume" in titles
+    assert "Strongest validation exercise" in titles
+    assert "Scenario coverage" in titles
+    assert any("bravo-run produced 60 phantom records" in insight["body"] for insight in insights)
+
     artifacts = load_run_artifacts(tmp_path / "bravo-run")
     html = render_dashboard(
         output_dir=tmp_path,
@@ -111,6 +121,10 @@ def test_dashboard_registry_compares_multiple_runs(tmp_path):
     assert "bravo-run" in html
     assert "Dense Phantom" in html
     assert "Baseline" in html
+    assert "Comparison Insights" in html
+    assert "Highest synthetic volume" in html
+    assert "Strongest validation exercise" in html
+    assert "bravo-run produced 60 phantom records" in html
     assert "Evidence Ready" in html
     assert "/?run_id=alpha-run" in html
     assert "selected-run" in html

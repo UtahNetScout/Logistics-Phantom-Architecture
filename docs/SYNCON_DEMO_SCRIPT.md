@@ -46,6 +46,7 @@ Call out the important surfaces:
 - Agent C validation metrics.
 - Red-team SNR metrics.
 - Run registry comparison across completed demo missions.
+- Comparison insights that explain the strongest differences across completed runs.
 - Mission lifecycle timeline.
 - Generated artifact links.
 
@@ -97,6 +98,7 @@ Close with the boundary:
 - The export command generates a polished executive leave-behind from a completed run.
 - The dashboard can generate the same executive export without using the command line.
 - Scenario templates let the same product flow demonstrate different synthetic review profiles.
+- Comparison insights turn multiple runs into a short reviewer narrative.
 - The concept is intentionally framed around synthetic data and validation boundaries.
 - The long-term vision is pre-mission planning, future authorized live support, and post-mission reporting.
 

@@ -306,6 +306,80 @@ def load_run_registry(output_dir: Path) -> list[Dict[str, Any]]:
     )
 
 
+def generate_comparison_insights(summaries: list[Dict[str, Any]]) -> list[Dict[str, str]]:
+    """Generate deterministic reviewer insights across completed runs."""
+    complete = [summary for summary in summaries if isinstance(summary.get("phantom_count"), int)]
+    if len(complete) < 2:
+        return [
+            {
+                "title": "More runs needed",
+                "body": "Generate at least two scenario runs to unlock comparison insights.",
+            }
+        ]
+
+    insights: list[Dict[str, str]] = []
+    volume_leader = max(complete, key=lambda item: int(item.get("phantom_count", 0)))
+    rejection_leader = max(complete, key=lambda item: int(item.get("rejected_count", 0) or 0))
+    snr_values = [item for item in complete if isinstance(item.get("snr"), (int, float))]
+    detection_values = [item for item in complete if isinstance(item.get("detection_rate"), (int, float))]
+    scenario_labels = sorted({str(item.get("scenario_label", "Unknown")) for item in complete})
+
+    insights.append(
+        {
+            "title": "Highest synthetic volume",
+            "body": (
+                f"{volume_leader.get('run_id', '-')} produced "
+                f"{_fmt_int(volume_leader.get('phantom_count'))} phantom records under the "
+                f"{volume_leader.get('scenario_label', 'Unknown')} profile."
+            ),
+        }
+    )
+    insights.append(
+        {
+            "title": "Strongest validation exercise",
+            "body": (
+                f"{rejection_leader.get('run_id', '-')} rejected "
+                f"{_fmt_int(rejection_leader.get('rejected_count'))} seeded unsafe records, "
+                "highlighting Agent C boundary enforcement."
+            ),
+        }
+    )
+    if snr_values:
+        lowest_snr = min(snr_values, key=lambda item: float(item.get("snr", 0.0)))
+        insights.append(
+            {
+                "title": "Lowest red-team SNR",
+                "body": (
+                    f"{lowest_snr.get('run_id', '-')} reported SNR "
+                    f"{_fmt_float(lowest_snr.get('snr'), 4)}, a simplified prototype metric "
+                    "for reviewer comparison only."
+                ),
+            }
+        )
+    if detection_values:
+        highest_detection = max(detection_values, key=lambda item: float(item.get("detection_rate", 0.0)))
+        insights.append(
+            {
+                "title": "Detection-rate watch item",
+                "body": (
+                    f"{highest_detection.get('run_id', '-')} has the highest detector rate at "
+                    f"{_fmt_percent(highest_detection.get('detection_rate'))}, useful for comparing "
+                    "scenario pressure without making operational claims."
+                ),
+            }
+        )
+    insights.append(
+        {
+            "title": "Scenario coverage",
+            "body": (
+                f"{len(scenario_labels)} scenario profile(s) represented: "
+                f"{', '.join(scenario_labels)}."
+            ),
+        }
+    )
+    return insights
+
+
 def render_dashboard(
     output_dir: Path,
     run_id: str,
@@ -330,6 +404,7 @@ def render_dashboard(
     scenario_label = html.escape(str(scenario.get("scenario_id", "synthetic-contested-logistics-demo")))
     run_label = html.escape(run_id)
     registry = run_summaries if run_summaries is not None else load_run_registry(output_dir)
+    comparison_insights = generate_comparison_insights(registry)
 
     return f"""<!doctype html>
 <html lang="en">
@@ -589,6 +664,26 @@ def render_dashboard(
       font-size: 12px;
       white-space: nowrap;
     }}
+    .insights {{
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }}
+    .insight {{
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 14px;
+      min-height: 118px;
+    }}
+    .insight-title {{
+      color: var(--accent-strong);
+      font-weight: 700;
+      margin-bottom: 6px;
+    }}
+    .insight-body {{
+      color: #c5d5df;
+    }}
     .timeline {{
       display: grid;
       gap: 10px;
@@ -656,14 +751,14 @@ def render_dashboard(
       padding-top: 8px;
     }}
     @media (max-width: 900px) {{
-      .grid, form {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+      .grid, form, .insights {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
       .mission-brief {{ grid-template-columns: 1fr; }}
       .topbar {{ align-items: flex-start; flex-direction: column; }}
       .status-strip {{ justify-content: flex-start; }}
     }}
     @media (max-width: 560px) {{
       main {{ padding: 16px; }}
-      .grid, form {{ grid-template-columns: 1fr; }}
+      .grid, form, .insights {{ grid-template-columns: 1fr; }}
       .timeline-item {{ grid-template-columns: 1fr; }}
     }}
   </style>
@@ -735,6 +830,10 @@ def render_dashboard(
     <section>
       <h2>Run Registry And Comparison</h2>
       {_run_registry_table(registry, run_id)}
+    </section>
+    <section>
+      <h2>Comparison Insights</h2>
+      {_comparison_insight_cards(comparison_insights)}
     </section>
     <section>
       <h2>Run Summary</h2>
@@ -843,6 +942,19 @@ def _run_registry_table(summaries: list[Dict[str, Any]], selected_run: str) -> s
             "</tr>"
         )
     rows.append("</table>")
+    return "\n".join(rows)
+
+
+def _comparison_insight_cards(insights: list[Dict[str, str]]) -> str:
+    rows = ['<div class="insights">']
+    for insight in insights:
+        rows.append(
+            '<div class="insight">'
+            f'<div class="insight-title">{html.escape(insight.get("title", "-"))}</div>'
+            f'<div class="insight-body">{html.escape(insight.get("body", "-"))}</div>'
+            "</div>"
+        )
+    rows.append("</div>")
     return "\n".join(rows)
 
 
