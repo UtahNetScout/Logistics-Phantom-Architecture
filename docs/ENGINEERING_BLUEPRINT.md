@@ -57,6 +57,7 @@ The product should expose six primary views.
 | View | Purpose | Core Actions |
 |------|---------|--------------|
 | Mission Setup | Configure synthetic scenario parameters. | Set region bounds, convoy count, phantom multiplier, seed, speed range, and fidelity mode. |
+| Scenario Templates | Select reusable synthetic mission profiles. | Choose baseline, dense phantom, validation stress, or high-threat synthetic profiles. |
 | Pipeline Runner | Execute Agent A, Agent B, Agent C, and red-team stages. | Start run, stop run, inspect stage status, download artifacts. |
 | Validation Dashboard | Show Agent C approval/rejection results. | Inspect rejected phantom IDs, nearest ground-truth distance, latency, false positive checks. |
 | Red-Team Lab | Evaluate synthetic swarm realism with simplified adversary models. | Compare multiplier levels, SNR trend, detection rate, detector configuration. |
@@ -175,6 +176,7 @@ These contracts should become typed Python models, JSON schemas, or Pydantic mod
 ```json
 {
   "scenario_id": "demo-2026-001",
+  "scenario_template": "baseline",
   "seed": 42,
   "region_lat_range": [30.0, 50.0],
   "region_lon_range": [-100.0, -70.0],
@@ -315,6 +317,7 @@ The product API should be designed around scenario runs.
 Deliverables:
 - `src/syncon/` package with scenario/run orchestration.
 - CLI command: `python syncon.py run --scenario demo`.
+- Scenario template command examples: `python syncon.py run --scenario baseline`, `python syncon.py run --scenario validation-stress`, and `python syncon.py run --scenario dense-phantom`.
 - Generated JSON artifacts and `REPORT.md` for each run.
 - CLI export command: `python syncon.py export --run-id demo-run-001`.
 - Generated `SYNCON_EXECUTIVE_REPORT.md` and `EXPORT_MANIFEST.json` for reviewer leave-behinds.
@@ -358,6 +361,7 @@ Done when:
 
 Deliverables:
 - Scenario templates.
+- Dashboard scenario selector and run-registry scenario labels.
 - Pluggable route strategies.
 - Pluggable detector strategies.
 - Synthetic data export formats.

@@ -53,6 +53,14 @@ The command-line flow is:
 python syncon.py run --scenario demo
 ```
 
+Scenario templates currently include:
+
+- `demo`
+- `baseline`
+- `dense-phantom`
+- `validation-stress`
+- `high-threat-synthetic`
+
 The executive export flow is:
 
 ```bash
@@ -96,6 +104,7 @@ All current results are synthetic prototype results. They are useful for product
 | Architecture | Documented in Logistics Phantom blueprint |
 | Product shell | Implemented as SYNCON runner |
 | Dashboard | Implemented as local browser dashboard |
+| Scenario templates | Implemented for reusable synthetic review profiles |
 | Evidence package | Generated as JSON and Markdown artifacts |
 | Executive export | Implemented as a generated reviewer package from CLI and dashboard |
 | Tests | Full suite passing |

@@ -55,6 +55,13 @@ Show the evidence package:
 python syncon.py run --scenario demo
 ```
 
+Show scenario range:
+
+```bash
+python syncon.py run --scenario validation-stress --run-id validation-review
+python syncon.py run --scenario dense-phantom --run-id dense-review
+```
+
 Then point to:
 
 ```text
@@ -89,6 +96,7 @@ Close with the boundary:
 - The repo includes tests, a dashboard, generated artifacts, a sample evidence package, and an engineering blueprint.
 - The export command generates a polished executive leave-behind from a completed run.
 - The dashboard can generate the same executive export without using the command line.
+- Scenario templates let the same product flow demonstrate different synthetic review profiles.
 - The concept is intentionally framed around synthetic data and validation boundaries.
 - The long-term vision is pre-mission planning, future authorized live support, and post-mission reporting.
 

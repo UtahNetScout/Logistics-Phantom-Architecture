@@ -44,6 +44,7 @@ def test_export_run_writes_executive_package(tmp_path):
     assert "Validation Boundary" in report
     assert "not operational use" in report
     assert "export-run" in report
+    assert "Scenario Template" in report
 
     manifest = json.loads((export_dir / EXPORT_MANIFEST_NAME).read_text(encoding="utf-8"))
     assert manifest["run_id"] == "export-run"

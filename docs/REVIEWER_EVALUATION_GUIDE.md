@@ -63,6 +63,14 @@ Run:
 python syncon.py run --scenario demo
 ```
 
+Try additional synthetic profiles:
+
+```bash
+python syncon.py run --scenario baseline --run-id baseline-review
+python syncon.py run --scenario validation-stress --run-id validation-review
+python syncon.py run --scenario dense-phantom --run-id dense-review
+```
+
 Inspect:
 
 ```text
@@ -77,6 +85,7 @@ Expected result:
 - A new evidence package is generated.
 - Intentionally seeded unsafe records are rejected by Agent C.
 - The run is reproducible from a deterministic seed.
+- The selected scenario template is recorded in `scenario.json` and shown in the dashboard registry.
 
 ### Optional: Export A Leave-Behind Package
 
@@ -109,6 +118,7 @@ Expected result:
 | Engineering readiness | Could an engineer pick up the build plan? | Engineering blueprint defines surfaces, contracts, and acceptance criteria |
 | Demo usability | Can I run or inspect the product quickly? | Dashboard and sample evidence package are easy to evaluate |
 | Product console depth | Can I compare multiple generated missions? | Dashboard registry lists completed runs with key metrics |
+| Scenario depth | Can I demonstrate different synthetic review profiles? | CLI and dashboard expose reusable scenario templates |
 | Export readiness | Can I hand someone a generated report? | Export command writes `SYNCON_EXECUTIVE_REPORT.md` and `EXPORT_MANIFEST.json` |
 | UI export readiness | Can a reviewer export from the console? | Dashboard `Export Brief` button generates export links |
 | Guardrails | Are scope boundaries explicit? | Synthetic-only, unclassified, and not deployment-ready language is repeated |

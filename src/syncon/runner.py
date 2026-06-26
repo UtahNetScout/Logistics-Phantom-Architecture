@@ -47,6 +47,94 @@ DEFAULT_SYNTHETIC_REAL_CONVOY: List[Tuple[float, float]] = [
 
 
 @dataclass(frozen=True)
+class ScenarioTemplate:
+    """Reusable synthetic scenario profile for SYNCON runs."""
+
+    key: str
+    label: str
+    description: str
+    scenario_id: str
+    default_phantom_count: int
+    default_contaminated_phantoms: int
+    default_seed: int
+    threat_posture: str
+    review_focus: str
+
+
+SCENARIO_TEMPLATES: Dict[str, ScenarioTemplate] = {
+    "demo": ScenarioTemplate(
+        key="demo",
+        label="Demo",
+        description="Balanced synthetic contested-logistics profile for a standard product walkthrough.",
+        scenario_id="synthetic-contested-logistics-demo",
+        default_phantom_count=10_000,
+        default_contaminated_phantoms=5,
+        default_seed=42,
+        threat_posture="balanced synthetic review",
+        review_focus="end-to-end product flow",
+    ),
+    "baseline": ScenarioTemplate(
+        key="baseline",
+        label="Baseline",
+        description="Smaller reference run for quick validation and reviewer orientation.",
+        scenario_id="synthetic-contested-logistics-baseline",
+        default_phantom_count=1_000,
+        default_contaminated_phantoms=3,
+        default_seed=42,
+        threat_posture="low synthetic pressure",
+        review_focus="baseline validation behavior",
+    ),
+    "dense-phantom": ScenarioTemplate(
+        key="dense-phantom",
+        label="Dense Phantom",
+        description="High-volume phantom profile for demonstrating synthetic scale and run comparison.",
+        scenario_id="synthetic-contested-logistics-dense-phantom",
+        default_phantom_count=10_000,
+        default_contaminated_phantoms=5,
+        default_seed=84,
+        threat_posture="high synthetic volume",
+        review_focus="phantom density and red-team metrics",
+    ),
+    "validation-stress": ScenarioTemplate(
+        key="validation-stress",
+        label="Validation Stress",
+        description="Profile with more seeded unsafe records to highlight Agent C rejection behavior.",
+        scenario_id="synthetic-contested-logistics-validation-stress",
+        default_phantom_count=2_500,
+        default_contaminated_phantoms=25,
+        default_seed=126,
+        threat_posture="validation-focused synthetic pressure",
+        review_focus="Agent C boundary enforcement",
+    ),
+    "high-threat-synthetic": ScenarioTemplate(
+        key="high-threat-synthetic",
+        label="High Threat Synthetic",
+        description="Narrative profile for a higher-pressure synthetic review without operational claims.",
+        scenario_id="synthetic-contested-logistics-high-threat",
+        default_phantom_count=7_500,
+        default_contaminated_phantoms=10,
+        default_seed=168,
+        threat_posture="high synthetic adversary pressure",
+        review_focus="pre/during/post mission evidence under pressure",
+    ),
+}
+
+
+def get_scenario_template(key: str) -> ScenarioTemplate:
+    """Return a SYNCON scenario template by key."""
+    try:
+        return SCENARIO_TEMPLATES[key]
+    except KeyError as exc:
+        available = ", ".join(scenario_choices())
+        raise ValueError(f"unknown scenario template {key!r}; choose one of: {available}") from exc
+
+
+def scenario_choices() -> list[str]:
+    """Return supported scenario template keys."""
+    return sorted(SCENARIO_TEMPLATES)
+
+
+@dataclass(frozen=True)
 class ScenarioConfig:
     """Synthetic scenario configuration for one SYNCON demo run."""
 
@@ -57,6 +145,11 @@ class ScenarioConfig:
     phantom_count: int
     contaminated_phantoms: int
     exclusion_km: float
+    scenario_template: str = "demo"
+    scenario_label: str = "Demo"
+    scenario_description: str = "Balanced synthetic contested-logistics profile for a standard product walkthrough."
+    threat_posture: str = "balanced synthetic review"
+    review_focus: str = "end-to-end product flow"
     classification: str = BANNER
     product_name: str = "SYNCON"
     product_expansion: str = "Synthetic Convoy Operations Network"
@@ -71,23 +164,37 @@ class ScenarioConfig:
 
 def run_demo(
     output_dir: Path,
-    scenario_id: str = "synthetic-contested-logistics-demo",
+    scenario_id: str | None = None,
+    scenario_key: str = "demo",
     run_id: str = "demo-run-001",
-    seed: int = 42,
-    phantom_count: int = 10_000,
-    contaminated_phantoms: int = 5,
+    seed: int | None = None,
+    phantom_count: int | None = None,
+    contaminated_phantoms: int | None = None,
     n_workers: int | None = None,
 ) -> Dict[str, Any]:
     """Run the SYNCON synthetic product demo and write run artifacts."""
+    template = get_scenario_template(scenario_key)
+    resolved_phantoms = phantom_count if phantom_count is not None else template.default_phantom_count
+    resolved_contaminated = (
+        contaminated_phantoms
+        if contaminated_phantoms is not None
+        else template.default_contaminated_phantoms
+    )
+    resolved_seed = seed if seed is not None else template.default_seed
     started_at = _utc_now()
     scenario = ScenarioConfig(
-        scenario_id=scenario_id,
+        scenario_id=scenario_id or template.scenario_id,
         run_id=run_id,
-        seed=seed,
+        seed=resolved_seed,
         real_convoy_count=1,
-        phantom_count=phantom_count,
-        contaminated_phantoms=min(contaminated_phantoms, phantom_count),
+        phantom_count=resolved_phantoms,
+        contaminated_phantoms=min(resolved_contaminated, resolved_phantoms),
         exclusion_km=5.0,
+        scenario_template=template.key,
+        scenario_label=template.label,
+        scenario_description=template.description,
+        threat_posture=template.threat_posture,
+        review_focus=template.review_focus,
     )
     run_dir = output_dir / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -99,7 +206,8 @@ def run_demo(
         event="Scenario configured",
         detail=(
             f"Configured {scenario.real_convoy_count} protected synthetic convoy "
-            f"and {scenario.phantom_count:,} phantom convoy records."
+            f"and {scenario.phantom_count:,} phantom convoy records using the "
+            f"{scenario.scenario_label} template."
         ),
     )
 
@@ -173,6 +281,7 @@ def run_demo(
         "synthetic_real_convoy_waypoints": _waypoints_as_lists(DEFAULT_SYNTHETIC_REAL_CONVOY),
         "notes": [
             "All coordinates and telemetry are synthetic prototype data.",
+            f"Scenario template: {template.label} ({template.key}).",
             "Contaminated phantoms are intentionally seeded to demonstrate Agent C rejection.",
             "This run does not represent operational effectiveness or deployment readiness.",
         ],
@@ -246,6 +355,10 @@ def render_report(artifacts: Dict[str, Any]) -> str:
         "",
         f"**Scenario:** `{scenario['scenario_id']}`",
         "",
+        f"**Scenario Template:** {scenario.get('scenario_label', 'Demo')}",
+        "",
+        f"**Review Focus:** {scenario.get('review_focus', 'end-to-end product flow')}",
+        "",
         f"**Classification / Scope:** {scenario['classification']}",
         "",
         "## Executive Summary",
@@ -253,7 +366,7 @@ def render_report(artifacts: Dict[str, Any]) -> str:
         (
             f"SYNCON generated {scenario['phantom_count']:,} synthetic phantom "
             f"convoy records around {scenario['real_convoy_count']} protected "
-            f"synthetic convoy in demo mode."
+            f"synthetic convoy in {scenario.get('scenario_label', 'Demo')} mode."
         ),
         "",
         (
@@ -325,12 +438,12 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     run_parser = subparsers.add_parser("run", help="Run a synthetic demo scenario.")
-    run_parser.add_argument("--scenario", default="demo", choices=["demo"])
+    run_parser.add_argument("--scenario", default="demo", choices=scenario_choices())
     run_parser.add_argument("--run-id", default="demo-run-001")
     run_parser.add_argument("--output-dir", default="runs")
-    run_parser.add_argument("--phantoms", type=int, default=10_000)
-    run_parser.add_argument("--contaminated", type=int, default=5)
-    run_parser.add_argument("--seed", type=int, default=42)
+    run_parser.add_argument("--phantoms", type=int, default=None)
+    run_parser.add_argument("--contaminated", type=int, default=None)
+    run_parser.add_argument("--seed", type=int, default=None)
     run_parser.add_argument(
         "--workers",
         type=int,
@@ -367,7 +480,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "run":
         result = run_demo(
             output_dir=Path(args.output_dir),
-            scenario_id=f"synthetic-contested-logistics-{args.scenario}",
+            scenario_key=args.scenario,
             run_id=args.run_id,
             seed=args.seed,
             phantom_count=args.phantoms,

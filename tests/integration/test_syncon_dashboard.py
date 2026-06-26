@@ -37,6 +37,8 @@ def test_dashboard_renders_metrics_and_artifact_links(tmp_path):
     assert "SYNCON" in html
     assert "Mission Command Brief" in html
     assert "Mission Setup" in html
+    assert "Dense Phantom" in html
+    assert "Validation Stress" in html
     assert "Run Registry And Comparison" in html
     assert "Run Summary" in html
     assert "Validation And Red-Team Metrics" in html
@@ -73,6 +75,7 @@ def test_dashboard_registry_compares_multiple_runs(tmp_path):
     run_demo(
         output_dir=tmp_path,
         run_id="alpha-run",
+        scenario_key="baseline",
         phantom_count=30,
         contaminated_phantoms=1,
         seed=42,
@@ -81,6 +84,7 @@ def test_dashboard_registry_compares_multiple_runs(tmp_path):
     run_demo(
         output_dir=tmp_path,
         run_id="bravo-run",
+        scenario_key="dense-phantom",
         phantom_count=60,
         contaminated_phantoms=3,
         seed=43,
@@ -90,6 +94,8 @@ def test_dashboard_registry_compares_multiple_runs(tmp_path):
     registry = load_run_registry(tmp_path)
     assert [summary["run_id"] for summary in registry] == ["bravo-run", "alpha-run"]
     assert registry[0]["phantom_count"] == 60
+    assert registry[0]["scenario_template"] == "dense-phantom"
+    assert registry[0]["scenario_label"] == "Dense Phantom"
     assert registry[0]["rejected_count"] >= 3
 
     artifacts = load_run_artifacts(tmp_path / "bravo-run")
@@ -103,6 +109,8 @@ def test_dashboard_registry_compares_multiple_runs(tmp_path):
     assert "Run Registry And Comparison" in html
     assert "alpha-run" in html
     assert "bravo-run" in html
+    assert "Dense Phantom" in html
+    assert "Baseline" in html
     assert "Evidence Ready" in html
     assert "/?run_id=alpha-run" in html
     assert "selected-run" in html

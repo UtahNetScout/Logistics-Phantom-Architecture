@@ -6,7 +6,7 @@ UNCLASSIFIED SYNTHETIC PROTOTYPE DATA - PORTFOLIO PROOF-OF-CONCEPT
 
 import json
 
-from src.syncon.runner import run_demo
+from src.syncon.runner import SCENARIO_TEMPLATES, main, run_demo
 
 
 def test_syncon_demo_writes_expected_artifacts(tmp_path):
@@ -52,3 +52,46 @@ def test_syncon_report_contains_lifecycle_and_boundaries(tmp_path):
     assert "during-mission" in report
     assert "post-mission" in report
     assert "not deployment readiness" in report
+
+
+def test_syncon_scenario_template_defaults_are_recorded(tmp_path):
+    run_demo(
+        output_dir=tmp_path,
+        run_id="template-run",
+        scenario_key="validation-stress",
+        n_workers=1,
+    )
+
+    scenario = json.loads((tmp_path / "template-run" / "scenario.json").read_text(encoding="utf-8"))
+    template = SCENARIO_TEMPLATES["validation-stress"]
+    assert scenario["scenario_template"] == "validation-stress"
+    assert scenario["scenario_label"] == template.label
+    assert scenario["scenario_id"] == template.scenario_id
+    assert scenario["phantom_count"] == template.default_phantom_count
+    assert scenario["contaminated_phantoms"] == template.default_contaminated_phantoms
+    assert scenario["review_focus"] == "Agent C boundary enforcement"
+
+    report = (tmp_path / "template-run" / "REPORT.md").read_text(encoding="utf-8")
+    assert "Scenario Template" in report
+    assert "Validation Stress" in report
+
+
+def test_syncon_cli_accepts_scenario_template(tmp_path):
+    exit_code = main(
+        [
+            "run",
+            "--scenario",
+            "baseline",
+            "--run-id",
+            "cli-template",
+            "--output-dir",
+            str(tmp_path),
+            "--workers",
+            "1",
+        ]
+    )
+
+    scenario = json.loads((tmp_path / "cli-template" / "scenario.json").read_text(encoding="utf-8"))
+    assert exit_code == 0
+    assert scenario["scenario_template"] == "baseline"
+    assert scenario["phantom_count"] == SCENARIO_TEMPLATES["baseline"].default_phantom_count

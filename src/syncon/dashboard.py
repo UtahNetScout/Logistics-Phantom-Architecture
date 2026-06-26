@@ -19,7 +19,7 @@ from typing import Any, Dict, Iterable
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
 from .exporter import EXPORT_MANIFEST_NAME, EXPORT_REPORT_NAME, export_run
-from .runner import BANNER, run_demo
+from .runner import BANNER, SCENARIO_TEMPLATES, get_scenario_template, run_demo
 
 ARTIFACT_NAMES = {
     "scenario.json",
@@ -106,12 +106,15 @@ def make_handler(output_dir: Path, default_run_id: str) -> type[BaseHTTPRequestH
             form = parse_qs(payload)
             try:
                 run_id = _safe_run_id(_first(form, "run_id", default_run_id))
+                scenario_key = _first(form, "scenario", "demo")
+                template = get_scenario_template(scenario_key)
                 phantom_count = _bounded_int(_first(form, "phantoms", "10000"), 1, 10000)
                 contaminated = _bounded_int(_first(form, "contaminated", "5"), 0, 50)
                 seed = _bounded_int(_first(form, "seed", "42"), 0, 999999)
                 run_demo(
                     output_dir=output_dir,
                     run_id=run_id,
+                    scenario_key=template.key,
                     seed=seed,
                     phantom_count=phantom_count,
                     contaminated_phantoms=contaminated,
@@ -280,6 +283,8 @@ def load_run_registry(output_dir: Path) -> list[Dict[str, Any]]:
             {
                 "run_id": scenario.get("run_id", run_dir.name),
                 "scenario_id": scenario.get("scenario_id", "-"),
+                "scenario_template": scenario.get("scenario_template", "demo"),
+                "scenario_label": scenario.get("scenario_label", "Demo"),
                 "phantom_count": scenario.get("phantom_count"),
                 "contaminated_phantoms": scenario.get("contaminated_phantoms"),
                 "approved_count": validation.get("approved_count"),
@@ -318,6 +323,8 @@ def render_dashboard(
     default_phantoms = scenario.get("phantom_count", 10000)
     default_contaminated = scenario.get("contaminated_phantoms", 5)
     default_seed = scenario.get("seed", 42)
+    selected_scenario = str(scenario.get("scenario_template", "demo"))
+    scenario_options = _scenario_options(selected_scenario)
     artifact_links = _artifact_links(run_id)
     export_links = _export_links(run_id, dashboard_export_root(output_dir))
     scenario_label = html.escape(str(scenario.get("scenario_id", "synthetic-contested-logistics-demo")))
@@ -504,7 +511,7 @@ def render_dashboard(
     }}
     form {{
       display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-columns: repeat(6, minmax(0, 1fr));
       gap: 12px;
       align-items: end;
     }}
@@ -515,7 +522,7 @@ def render_dashboard(
       margin-bottom: 4px;
       text-transform: uppercase;
     }}
-    input {{
+    input, select {{
       width: 100%;
       padding: 9px 10px;
       border: 1px solid var(--line-strong);
@@ -524,7 +531,7 @@ def render_dashboard(
       background: #09131c;
       color: var(--ink);
     }}
-    input:focus {{
+    input:focus, select:focus {{
       outline: 2px solid rgba(50, 211, 199, 0.35);
       border-color: var(--accent);
     }}
@@ -707,6 +714,10 @@ def render_dashboard(
           <input id="run_id" name="run_id" value="{selected_run}" pattern="[A-Za-z0-9_.-]+" required>
         </div>
         <div>
+          <label for="scenario">Scenario</label>
+          <select id="scenario" name="scenario">{scenario_options}</select>
+        </div>
+        <div>
           <label for="phantoms">Phantom Records</label>
           <input id="phantoms" name="phantoms" type="number" min="1" max="10000" value="{html.escape(str(default_phantoms))}" required>
         </div>
@@ -813,7 +824,7 @@ def _run_registry_table(summaries: list[Dict[str, Any]], selected_run: str) -> s
 
     rows = [
         "<table>",
-        "<tr><th>Run</th><th>Phantoms</th><th>Rejected</th><th>SNR</th><th>Detection</th><th>Events</th><th>Completed</th><th>Status</th></tr>",
+        "<tr><th>Run</th><th>Scenario</th><th>Phantoms</th><th>Rejected</th><th>SNR</th><th>Detection</th><th>Events</th><th>Status</th></tr>",
     ]
     for summary in summaries:
         run_id = str(summary.get("run_id", "-"))
@@ -822,12 +833,12 @@ def _run_registry_table(summaries: list[Dict[str, Any]], selected_run: str) -> s
         rows.append(
             f"<tr{row_class}>"
             f'<td><a class="run-link" href="{href}">{html.escape(run_id)}</a></td>'
+            f"<td>{html.escape(str(summary.get('scenario_label', '-')))}</td>"
             f"<td>{_fmt_int(summary.get('phantom_count'))}</td>"
             f"<td>{_fmt_int(summary.get('rejected_count'))}</td>"
             f"<td>{_fmt_float(summary.get('snr'), 4)}</td>"
             f"<td>{_fmt_percent(summary.get('detection_rate'))}</td>"
             f"<td>{_fmt_int(summary.get('event_count'))}</td>"
-            f"<td>{html.escape(str(summary.get('completed_at_utc', '-')))}</td>"
             '<td><span class="status-badge">Evidence Ready</span></td>'
             "</tr>"
         )
@@ -839,6 +850,17 @@ def _message_html(message: str) -> str:
     if not message:
         return ""
     return f'<div class="notice">{html.escape(message)}</div>'
+
+
+def _scenario_options(selected: str) -> str:
+    options = []
+    for key, template in SCENARIO_TEMPLATES.items():
+        selected_attr = " selected" if key == selected else ""
+        label = f"{template.label} - {template.review_focus}"
+        options.append(
+            f'<option value="{html.escape(key)}"{selected_attr}>{html.escape(label)}</option>'
+        )
+    return "\n".join(options)
 
 
 def _metric(label: str, value: object, primary: bool = False) -> str:
