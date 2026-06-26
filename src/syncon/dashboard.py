@@ -432,6 +432,143 @@ def build_mission_replay(
     return {"summary": summary, "events": cards}
 
 
+def generate_operator_decisions(
+    scenario: Dict[str, Any],
+    validation: Dict[str, Any],
+    red_team: Dict[str, Any],
+    summaries: list[Dict[str, Any]],
+) -> list[Dict[str, str]]:
+    """Generate deterministic demo-safe operator decision cards."""
+    if not scenario:
+        return [
+            {
+                "severity": "Standby",
+                "confidence": "High",
+                "title": "Generate a synthetic run",
+                "action": "Run the demo to populate decision support.",
+                "rationale": "Decision cards are derived from local synthetic artifacts, not live data.",
+            }
+        ]
+
+    decisions: list[Dict[str, str]] = []
+    phantom_count = scenario.get("phantom_count")
+    rejected_count = validation.get("rejected_count")
+    detection_rate = red_team.get("detection_rate")
+    snr = red_team.get("snr")
+    scenario_template = str(scenario.get("scenario_template", "demo"))
+    all_seeded_rejected = validation.get("all_seeded_unsafe_rejected") is True
+
+    if all_seeded_rejected:
+        decisions.append(
+            {
+                "severity": "Ready",
+                "confidence": "High",
+                "title": "Validation boundary triggered",
+                "action": "Keep Agent C as a required gate before any evidence export.",
+                "rationale": (
+                    f"Agent C rejected {_fmt_int(rejected_count)} seeded unsafe record(s), "
+                    "showing the protected-ground-truth boundary in the demo."
+                ),
+            }
+        )
+    else:
+        decisions.append(
+            {
+                "severity": "Review",
+                "confidence": "High",
+                "title": "Validation review required",
+                "action": "Inspect validation.json before presenting this run.",
+                "rationale": "The run did not confirm that every seeded unsafe record was rejected.",
+            }
+        )
+
+    if isinstance(phantom_count, int) and phantom_count < 1_000:
+        decisions.append(
+            {
+                "severity": "Medium",
+                "confidence": "Medium",
+                "title": "Increase phantom density",
+                "action": "Run the dense-phantom profile to show a stronger synthetic layer.",
+                "rationale": (
+                    f"This run generated {_fmt_int(phantom_count)} phantom records; "
+                    "higher-volume profiles make the product surface more compelling for reviewers."
+                ),
+            }
+        )
+    elif isinstance(phantom_count, int):
+        decisions.append(
+            {
+                "severity": "Ready",
+                "confidence": "High",
+                "title": "Synthetic layer ready for review",
+                "action": "Use this run in the dashboard walkthrough and evidence package.",
+                "rationale": f"The run generated {_fmt_int(phantom_count)} synthetic phantom records.",
+            }
+        )
+
+    if isinstance(detection_rate, (int, float)) and isinstance(snr, (int, float)):
+        if float(detection_rate) <= 0.10 and float(snr) <= 0.10:
+            decisions.append(
+                {
+                    "severity": "Ready",
+                    "confidence": "Medium",
+                    "title": "Detector pressure within demo threshold",
+                    "action": "Use the red-team metrics as a prototype comparison signal.",
+                    "rationale": (
+                        f"Detection rate is {_fmt_percent(detection_rate)} with SNR "
+                        f"{_fmt_float(snr, 4)}; this remains a simplified reviewer metric only."
+                    ),
+                }
+            )
+        else:
+            decisions.append(
+                {
+                    "severity": "Watch",
+                    "confidence": "Medium",
+                    "title": "Red-team pressure watch item",
+                    "action": "Compare this run against dense-phantom and validation-stress profiles.",
+                    "rationale": (
+                        f"Detection rate is {_fmt_percent(detection_rate)} with SNR "
+                        f"{_fmt_float(snr, 4)}, useful for scenario comparison without operational claims."
+                    ),
+                }
+            )
+
+    if len(summaries) < 2:
+        decisions.append(
+            {
+                "severity": "Next",
+                "confidence": "High",
+                "title": "Run a comparison profile",
+                "action": "Generate one additional scenario so the registry and insights can compare runs.",
+                "rationale": "Comparison is stronger when at least two completed synthetic missions exist.",
+            }
+        )
+    elif scenario_template != "validation-stress":
+        decisions.append(
+            {
+                "severity": "Next",
+                "confidence": "Medium",
+                "title": "Run validation-stress profile",
+                "action": "Use validation-stress as the next review run to emphasize Agent C boundaries.",
+                "rationale": "The current run is ready, and a validation-focused contrast strengthens the demo story.",
+            }
+        )
+
+    if all_seeded_rejected and isinstance(phantom_count, int):
+        decisions.append(
+            {
+                "severity": "Ready",
+                "confidence": "High",
+                "title": "Scenario ready for executive export",
+                "action": "Generate the executive brief for this selected run.",
+                "rationale": "The run has scenario, validation, red-team, replay, timeline, and report artifacts.",
+            }
+        )
+
+    return decisions[:5]
+
+
 def render_dashboard(
     output_dir: Path,
     run_id: str,
@@ -458,6 +595,7 @@ def render_dashboard(
     registry = run_summaries if run_summaries is not None else load_run_registry(output_dir)
     comparison_insights = generate_comparison_insights(registry)
     mission_replay = build_mission_replay(events, scenario, validation, red_team)
+    operator_decisions = generate_operator_decisions(scenario, validation, red_team, registry)
 
     return f"""<!doctype html>
 <html lang="en">
@@ -737,6 +875,64 @@ def render_dashboard(
     .insight-body {{
       color: #c5d5df;
     }}
+    .decision-grid {{
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+    }}
+    .decision-card {{
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 13px;
+      min-height: 220px;
+      display: grid;
+      grid-template-rows: auto auto auto 1fr;
+      gap: 9px;
+      position: relative;
+      overflow: hidden;
+    }}
+    .decision-card::before {{
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: var(--accent);
+    }}
+    .decision-card.ready::before {{ background: var(--ok); }}
+    .decision-card.watch::before {{ background: var(--warn); }}
+    .decision-card.review::before {{ background: var(--danger); }}
+    .decision-card.medium::before {{ background: var(--blue); }}
+    .decision-card.next::before {{ background: var(--accent); }}
+    .decision-meta {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }}
+    .decision-chip {{
+      border: 1px solid rgba(143, 162, 178, 0.35);
+      border-radius: 999px;
+      color: #d8e6ef;
+      background: rgba(7, 16, 23, 0.45);
+      padding: 3px 7px;
+      font-size: 11px;
+      text-transform: uppercase;
+    }}
+    .decision-title {{
+      color: #ffffff;
+      font-weight: 700;
+    }}
+    .decision-action {{
+      color: var(--accent-strong);
+      font-weight: 700;
+      font-size: 13px;
+    }}
+    .decision-rationale {{
+      color: #b9c9d5;
+      font-size: 13px;
+    }}
     .timeline {{
       display: grid;
       gap: 10px;
@@ -917,7 +1113,7 @@ def render_dashboard(
       padding-top: 8px;
     }}
     @media (max-width: 900px) {{
-      .grid, form, .insights {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+      .grid, form, .insights, .decision-grid {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
       .replay-header {{ grid-template-columns: 1fr; }}
       .replay-summary {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
       .replay-track {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
@@ -927,7 +1123,7 @@ def render_dashboard(
     }}
     @media (max-width: 560px) {{
       main {{ padding: 16px; }}
-      .grid, form, .insights {{ grid-template-columns: 1fr; }}
+      .grid, form, .insights, .decision-grid {{ grid-template-columns: 1fr; }}
       .replay-summary, .replay-track {{ grid-template-columns: 1fr; }}
       .timeline-item {{ grid-template-columns: 1fr; }}
     }}
@@ -1004,6 +1200,10 @@ def render_dashboard(
     <section>
       <h2>Comparison Insights</h2>
       {_comparison_insight_cards(comparison_insights)}
+    </section>
+    <section>
+      <h2>Operator Decision Layer</h2>
+      {_operator_decision_cards(operator_decisions)}
     </section>
     <section>
       <h2>Run Summary</h2>
@@ -1126,6 +1326,27 @@ def _comparison_insight_cards(insights: list[Dict[str, str]]) -> str:
             '<div class="insight">'
             f'<div class="insight-title">{html.escape(insight.get("title", "-"))}</div>'
             f'<div class="insight-body">{html.escape(insight.get("body", "-"))}</div>'
+            "</div>"
+        )
+    rows.append("</div>")
+    return "\n".join(rows)
+
+
+def _operator_decision_cards(decisions: list[Dict[str, str]]) -> str:
+    rows = ['<div class="decision-grid">']
+    for decision in decisions:
+        severity = str(decision.get("severity", "Next"))
+        confidence = str(decision.get("confidence", "Medium"))
+        tone = severity.lower()
+        rows.append(
+            f'<div class="decision-card {html.escape(tone)}">'
+            '<div class="decision-meta">'
+            f'<span class="decision-chip">{html.escape(severity)}</span>'
+            f'<span class="decision-chip">{html.escape(confidence)} Confidence</span>'
+            "</div>"
+            f'<div class="decision-title">{html.escape(decision.get("title", "-"))}</div>'
+            f'<div class="decision-action">{html.escape(decision.get("action", "-"))}</div>'
+            f'<div class="decision-rationale">{html.escape(decision.get("rationale", "-"))}</div>'
             "</div>"
         )
     rows.append("</div>")

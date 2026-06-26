@@ -69,6 +69,7 @@ The current prototype demonstrates the product workflow, validation gate, eviden
 - Produces a complete evidence package: scenario, phantoms, validation, red-team metrics, timeline, and Markdown report.
 - Provides a local high-tech dashboard for non-code review.
 - Replays each generated mission as a deterministic setup-to-report sequence in the dashboard.
+- Converts run evidence into deterministic operator decision cards for reviewer-safe next actions.
 - Separates the product shell, engineering blueprint, validation boundaries, and future operational vision.
 - Keeps all data synthetic and unclassified.
 
@@ -78,7 +79,7 @@ The current prototype demonstrates the product workflow, validation gate, eviden
 
 | Surface | Purpose |
 |---------|---------|
-| `python syncon.py dashboard` | Local browser dashboard for mission setup, metrics, run registry comparison, mission replay, lifecycle timeline, and artifact links |
+| `python syncon.py dashboard` | Local browser dashboard for mission setup, metrics, run registry comparison, operator decisions, mission replay, lifecycle timeline, and artifact links |
 | `python syncon.py run --scenario demo` | CLI runner that generates a complete synthetic evidence package from a selected scenario template |
 | `python syncon.py export --run-id demo-run-001` | Executive export command that creates a reviewer-ready leave-behind package |
 | Dashboard `Export Brief` button | UI action that generates and opens the executive export package for the selected run |
@@ -160,6 +161,7 @@ Validated within prototype scope:
 - Local dashboard and generated evidence reports.
 - Run registry and side-by-side mission comparison inside the dashboard.
 - Deterministic comparison insights that explain key differences across generated runs.
+- Operator decision layer with severity, confidence, recommended action, and rationale cards.
 - Mission replay console that turns run artifacts into a setup-to-report playback view.
 - Executive export packages generated from completed runs.
 - Dashboard export controls for reviewer-ready leave-behinds.

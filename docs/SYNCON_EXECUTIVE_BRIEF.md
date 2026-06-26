@@ -46,6 +46,7 @@ Within prototype scope, SYNCON demonstrates:
 - Simplified red-team SNR and detection metrics.
 - Evidence artifacts suitable for engineering review.
 - A local dashboard for non-code inspection.
+- Operator decision cards that translate synthetic run evidence into recommended next demo actions.
 - Mission replay that presents the selected run as a setup-to-report playback console.
 
 The command-line flow is:
@@ -107,6 +108,7 @@ All current results are synthetic prototype results. They are useful for product
 | Dashboard | Implemented as local browser dashboard |
 | Scenario templates | Implemented for reusable synthetic review profiles |
 | Comparison insights | Implemented as deterministic dashboard summaries across completed runs |
+| Operator decisions | Implemented as deterministic severity, confidence, action, and rationale cards |
 | Evidence package | Generated as JSON and Markdown artifacts |
 | Executive export | Implemented as a generated reviewer package from CLI and dashboard |
 | Tests | Full suite passing |

@@ -52,6 +52,7 @@ Evaluate whether the dashboard makes the product understandable without reading 
 - Red-team metrics are visible.
 - Run registry comparison is visible after multiple missions have been generated.
 - Comparison insights explain highest synthetic volume, validation exercise, SNR, detection-rate watch items, and scenario coverage.
+- Operator decision cards recommend reviewer-safe next actions with severity, confidence, and rationale.
 - Mission replay shows the selected run as a setup-to-report playback sequence.
 - Pre-mission, during-mission, and post-mission lifecycle events are visible.
 - Artifact links are available.
@@ -121,6 +122,7 @@ Expected result:
 | Demo usability | Can I run or inspect the product quickly? | Dashboard and sample evidence package are easy to evaluate |
 | Product console depth | Can I compare multiple generated missions? | Dashboard registry lists completed runs with key metrics |
 | Insight layer | Does the dashboard explain run differences? | Comparison Insights summarize volume, validation, SNR, detection rate, and profile coverage |
+| Decision layer | Does the product translate evidence into next actions? | Operator Decision Layer provides severity, confidence, action, and rationale cards |
 | Replay layer | Can I understand what happened without opening JSON? | Mission Replay shows setup, generation, validation, red-team, and evidence steps |
 | Scenario depth | Can I demonstrate different synthetic review profiles? | CLI and dashboard expose reusable scenario templates |
 | Export readiness | Can I hand someone a generated report? | Export command writes `SYNCON_EXECUTIVE_REPORT.md` and `EXPORT_MANIFEST.json` |

@@ -62,6 +62,7 @@ The product should expose six primary views.
 | Validation Dashboard | Show Agent C approval/rejection results. | Inspect rejected phantom IDs, nearest ground-truth distance, latency, false positive checks. |
 | Red-Team Lab | Evaluate synthetic swarm realism with simplified adversary models. | Compare multiplier levels, SNR trend, detection rate, detector configuration. |
 | Comparison Insights | Explain differences across completed runs. | Summarize highest volume, strongest validation exercise, lowest SNR, detection-rate watch items, and scenario coverage. |
+| Operator Decision Layer | Translate run evidence into reviewer-safe next actions. | Show severity, confidence, recommended action, and rationale for density, validation, red-team, comparison, and export decisions. |
 | Mission Replay | Present a selected run as an operations-style playback console. | Review setup, phantom generation, validation gate, red-team pressure, progress, and evidence status. |
 | Mission Timeline | Show raw pre-mission, during-mission, and post-mission stages. | Review setup, run events, validation changes, operator actions, and report status. |
 | Evidence Report | Produce portfolio-ready output for reviewers. | Export Markdown/JSON summary, test status, validation boundaries, caveats, and lifecycle narrative. |

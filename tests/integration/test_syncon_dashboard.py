@@ -11,6 +11,7 @@ from src.syncon.dashboard import (
     dashboard_export_root,
     export_dashboard_run,
     generate_comparison_insights,
+    generate_operator_decisions,
     load_run_artifacts,
     load_run_registry,
     render_dashboard,
@@ -48,6 +49,10 @@ def test_dashboard_renders_metrics_and_artifact_links(tmp_path):
     assert "Replay View" in html
     assert "Synthetic phantom telemetry generated" in html
     assert "Agent C approved" in html
+    assert "Operator Decision Layer" in html
+    assert "Validation boundary triggered" in html
+    assert "Increase phantom density" in html
+    assert "Scenario ready for executive export" in html
     assert "Run Summary" in html
     assert "Validation And Red-Team Metrics" in html
     assert "Mission Timeline" in html
@@ -57,6 +62,31 @@ def test_dashboard_renders_metrics_and_artifact_links(tmp_path):
     assert "REPORT.md" in html
     assert "dashboard-run" in html
     assert "Run complete" in html
+
+
+def test_dashboard_generates_operator_decisions_from_run_artifacts(tmp_path):
+    run_demo(
+        output_dir=tmp_path,
+        run_id="decision-run",
+        phantom_count=75,
+        contaminated_phantoms=2,
+        n_workers=1,
+    )
+
+    artifacts = load_run_artifacts(tmp_path / "decision-run")
+    decisions = generate_operator_decisions(
+        artifacts["scenario"],
+        artifacts["validation"],
+        artifacts["red_team"],
+        load_run_registry(tmp_path),
+    )
+    titles = [decision["title"] for decision in decisions]
+
+    assert "Validation boundary triggered" in titles
+    assert "Increase phantom density" in titles
+    assert "Run a comparison profile" in titles
+    assert "Scenario ready for executive export" in titles
+    assert all("confidence" in {key.lower() for key in decision} for decision in decisions)
 
 
 def test_dashboard_builds_mission_replay_from_generated_artifacts(tmp_path):
